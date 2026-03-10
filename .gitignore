@@ -213,3 +213,16 @@ data/
 
 # macOS
 .DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python cache/bytecode
+__pycache__/
+*.py[cod]
+*$py.class
