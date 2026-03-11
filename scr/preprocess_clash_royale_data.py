@@ -1,4 +1,4 @@
-import glob
+import sys
 import time
 from pathlib import Path
 
@@ -6,36 +6,11 @@ import duckdb
 import pandas as pd
 import polars as pl
 
-RAW_GLOB = "data/raw/*.csv"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from load_data import load_pandas, load_polars, COLS
+
 OUT_DIR = Path("data/processed")
 OUT_DIR.mkdir(parents=True, exist_ok=True)
-
-COLS = [
-    "datetime",
-    "gamemode",
-    "player1.tag",
-    "player1.trophies",
-    "player1.crowns",
-    "player1.card1",
-    "player1.card2",
-    "player1.card3",
-    "player1.card4",
-    "player1.card5",
-    "player1.card6",
-    "player1.card7",
-    "player1.card8",
-    "player2.tag",
-    "player2.trophies",
-    "player2.crowns",
-    "player2.card1",
-    "player2.card2",
-    "player2.card3",
-    "player2.card4",
-    "player2.card5",
-    "player2.card6",
-    "player2.card7",
-    "player2.card8",
-]
 
 CARD1 = [f"player1.card{i}" for i in range(1, 9)]
 CARD2 = [f"player2.card{i}" for i in range(1, 9)]
@@ -51,24 +26,9 @@ def measure_time(fn):
 
 
 def main():
-    files = sorted(glob.glob(RAW_GLOB))
-    if not files:
-        raise FileNotFoundError(f"No CSV files found for pattern: {RAW_GLOB}")
-
     # Task 1: Load and benchmark Pandas vs Polars
-    df_pd, pandas_time = measure_time(
-        lambda: pd.concat(
-            [pd.read_csv(f, header=None, names=COLS) for f in files],
-            ignore_index=True,
-        )
-    )
-
-    df_pl, polars_time = measure_time(
-        lambda: pl.concat(
-            [pl.read_csv(f, has_header=False, new_columns=COLS) for f in files],
-            how="vertical",
-        )
-    )
+    df_pd, pandas_time = measure_time(load_pandas)
+    df_pl, polars_time = measure_time(load_polars)
 
     print(f"Pandas load time: {pandas_time:.2f}s")
     print(f"Polars load time: {polars_time:.2f}s")
