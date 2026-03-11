@@ -145,6 +145,89 @@ def plot_top_cards(df: pl.DataFrame, top_n: int = 10):
     plt.close()
 
 
+def _resolve_name(card_id, card_map: dict[int, str]) -> str:
+    try:
+        return card_map.get(int(card_id), str(card_id))
+    except (ValueError, TypeError):
+        return str(card_id)
+
+
+def count_decks(df: pl.DataFrame, card_map: dict[int, str]) -> pl.DataFrame:
+    """
+    Count how often each unique 8-card deck appears (both players combined).
+    A deck is identified by sorting its 8 card IDs.
+    """
+    p1 = df.with_columns(
+        pl.concat_list(P1_CARDS)
+        .list.sort()
+        .list.eval(pl.element().cast(pl.Utf8))
+        .list.join(",")
+        .alias("deck")
+    ).select("deck")
+
+    p2 = df.with_columns(
+        pl.concat_list(P2_CARDS)
+        .list.sort()
+        .list.eval(pl.element().cast(pl.Utf8))
+        .list.join(",")
+        .alias("deck")
+    ).select("deck")
+
+    combined = pl.concat([p1, p2])
+
+    counts = (
+        combined
+        .group_by("deck")
+        .agg(pl.len().alias("usage_count"))
+        .sort("usage_count", descending=True)
+    )
+
+    total = counts["usage_count"].sum()
+    counts = counts.with_columns(
+        (pl.col("usage_count") / total * 100).alias("usage_percent")
+    )
+
+    # Add a readable deck name column
+    labels = []
+    for deck_str in counts["deck"].to_list():
+        card_ids = deck_str.split(",")
+        card_names = [_resolve_name(cid, card_map) for cid in card_ids]
+        labels.append(" | ".join(card_names))
+    counts = counts.with_columns(pl.Series("deck_name", labels))
+
+    return counts
+
+
+def plot_top_decks(deck_counts: pl.DataFrame, top_n: int = 10):
+    """
+    Horizontal bar chart of the most commonly used decks.
+    """
+    top = deck_counts.head(top_n)
+
+    labels = top["deck_name"].to_list()[::-1]
+    counts = top["usage_count"].to_list()[::-1]
+    pcts = top["usage_percent"].to_list()[::-1]
+
+    plt.figure(figsize=(16, 8))
+    bars = plt.barh(range(len(labels)), counts, color="steelblue")
+
+    plt.yticks(range(len(labels)), labels, fontsize=7)
+    plt.xlabel("Number of Appearances")
+    plt.title(f"Top {top_n} Most Commonly Used Decks")
+
+    for bar, cnt, pct in zip(bars, counts, pcts):
+        plt.text(
+            bar.get_width() + bar.get_width() * 0.01,
+            bar.get_y() + bar.get_height() / 2,
+            f"{cnt:,}  ({pct:.3f}%)",
+            va="center", fontsize=8
+        )
+
+    plt.tight_layout()
+    plt.savefig(OUT_DIR / "top10_common_decks.png", dpi=200, bbox_inches="tight")
+    plt.close()
+
+
 def main():
 
     df = load_clean_data()
@@ -152,6 +235,7 @@ def main():
 
     card_map = fetch_card_names()
 
+    # --- Top cards ---
     card_counts = count_cards(df, ALL_CARD_COLS)
 
     card_counts = add_card_names(card_counts, card_map)
@@ -165,7 +249,16 @@ def main():
 
     plot_top_cards(card_counts)
 
-    print("\nGraph saved to:", OUT_DIR.resolve())
+    # --- Top decks ---
+    deck_counts = count_decks(df, card_map)
+
+    print("\nTop 10 most commonly used decks:")
+    for row in deck_counts.head(10).iter_rows(named=True):
+        print(f"  {row['usage_count']:,} ({row['usage_percent']:.3f}%)  –  {row['deck_name']}")
+
+    plot_top_decks(deck_counts)
+
+    print("\nGraphs saved to:", OUT_DIR.resolve())
 
 
 if __name__ == "__main__":
