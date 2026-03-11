@@ -1,19 +1,11 @@
+import glob
+
 import pandas as pd
+import polars as pl
 
-files = [
-    "data/raw/20231002.csv",
-    "data/raw/20231003.csv",
-    "data/raw/20231004.csv",
-    "data/raw/20231005.csv",
-    "data/raw/20231006.csv",
-    "data/raw/20231007.csv",
-    "data/raw/20231008.csv",
-    "data/raw/20231009.csv",
-    "data/raw/20231010.csv",
-    "data/raw/20231011.csv",
-]
+RAW_GLOB = "data/raw/*.csv"
 
-column_names = [
+COLS = [
     "datetime", "gamemode",
     "player1.tag", "player1.trophies", "player1.crowns",
     "player1.card1", "player1.card2", "player1.card3", "player1.card4",
@@ -23,22 +15,29 @@ column_names = [
     "player2.card5", "player2.card6", "player2.card7", "player2.card8",
 ]
 
-df = [pd.read_csv(file, header=None, names=column_names) for file in files]
-df = pd.concat(df, ignore_index=True)
 
-print("Data loaded successfully!")
+def load_pandas() -> pd.DataFrame:
+    files = sorted(glob.glob(RAW_GLOB))
+    if not files:
+        raise FileNotFoundError(f"No CSV files found for pattern: {RAW_GLOB}")
+    return pd.concat(
+        [pd.read_csv(f, header=None, names=COLS) for f in files],
+        ignore_index=True,
+    )
 
-print("\nDataFrame Shape: ")
-print(df.shape)
 
-print("\nDataFrame Head: ")
-print(df.head())
+def load_polars() -> pl.DataFrame:
+    files = sorted(glob.glob(RAW_GLOB))
+    if not files:
+        raise FileNotFoundError(f"No CSV files found for pattern: {RAW_GLOB}")
+    return pl.concat(
+        [pl.read_csv(f, has_header=False, new_columns=COLS) for f in files],
+        how="vertical",
+    )
 
-print("\nDataFrame Columns: ")
-print(df.columns)
 
-print("\nDataFrame Info: ")
-print(df.info())
-
-# print("DataFrame Description: ")
-# print(df.describe())
+if __name__ == "__main__":
+    df = load_pandas()
+    print("Data loaded successfully!")
+    print(f"\nShape: {df.shape}")
+    print(df.head())
