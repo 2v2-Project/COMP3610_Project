@@ -24,3 +24,19 @@ python -m py_compile scr\preprocess_clash_royale_data.py
 
 # Run preprocess script
     python scr\preprocess_clash_royale_data.py
+
+## Dataset
+
+This project uses the Clash Royale Games dataset from Kaggle:
+
+https://www.kaggle.com/datasets/s1m0n38/clash-royale-games
+
+Due to the large size of the dataset (~100GB extracted), only a subset of CSV files was used.
+
+To reproduce the experiments:
+
+1. Download the dataset from Kaggle
+2. Extract the archive
+3. Place a few CSV files (e.g., `20231002.csv`, `20231003.csv`) in:
+
+data/raw/
