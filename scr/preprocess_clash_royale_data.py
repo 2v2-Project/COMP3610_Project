@@ -59,6 +59,7 @@ def main():
         .drop_nulls()
         .filter(pl.col("player1.crowns").is_between(0, 3))
         .filter(pl.col("player2.crowns").is_between(0, 3))
+        .filter(pl.col("player1.crowns") != pl.col("player2.crowns"))
         .filter(pl.col("player1.trophies") >= 0)
         .filter(pl.col("player2.trophies") >= 0)
         .filter(pl.col("player1.tag") != pl.col("player2.tag"))
@@ -73,14 +74,20 @@ def main():
         .with_columns([
             (pl.col("player1.crowns") > pl.col("player2.crowns"))
             .cast(pl.Int8)
-            .alias("win_label"),
+            .alias("target_win"),
             (pl.col("player1.crowns") - pl.col("player2.crowns")).alias("crown_diff"),
             (pl.col("player1.trophies") - pl.col("player2.trophies")).alias("trophy_diff"),
+            pl.concat_list(CARD1).alias("player_cards"),
+            pl.concat_list(CARD2).alias("opponent_cards"),
         ])
         .drop(["p1_unique_cards", "p2_unique_cards"])
     )
 
     print(f"Cleaned rows: {cleaned.height:,}")
+    print(
+    cleaned.select(["player_cards", "opponent_cards", "target_win"])
+    .head(5)
+)
 
     # Task 3: DuckDB validation
     con = duckdb.connect()
@@ -90,7 +97,7 @@ def main():
         """
         SELECT
           COUNT(*) AS rows_after_cleaning,
-          AVG(win_label) AS player1_win_rate,
+          AVG(target_win) AS player1_win_rate,
           AVG(trophy_diff) AS avg_trophy_diff
         FROM clean_df
         """
@@ -99,7 +106,10 @@ def main():
     print(check)
 
     # Task 4: Export outputs
-    cleaned.write_csv(OUT_DIR / "clash_royale_clean.csv")
+    # cleaned.write_csv(OUT_DIR / "clash_royale_clean.csv")
+    cleaned.drop(["player_cards", "opponent_cards"]).write_csv(
+    OUT_DIR / "clash_royale_clean.csv"
+    )
     cleaned.write_parquet(OUT_DIR / "clash_royale_clean.parquet")
 
     # Optional: keep a simple benchmark summary for your report
@@ -113,6 +123,7 @@ def main():
     benchmark.to_csv(OUT_DIR / "load_benchmark.csv", index=False)
 
     print("Saved cleaned files to data/processed/")
+    # print(cleaned.columns[player_cards, opponent_cards])
 
 
 if __name__ == "__main__":

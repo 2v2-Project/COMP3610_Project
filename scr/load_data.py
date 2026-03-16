@@ -39,5 +39,6 @@ def load_polars() -> pl.DataFrame:
 if __name__ == "__main__":
     df = load_pandas()
     print("Data loaded successfully!")
+    print(f"\nColumns: {df.columns.tolist()}")
     print(f"\nShape: {df.shape}")
     print(df.head())
