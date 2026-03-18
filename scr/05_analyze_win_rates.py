@@ -1,8 +1,9 @@
 """
 Task 4 – Calculate and visualise win rates for cards and decks.
 
-Uses the cleaned dataset produced by preprocess_clash_royale_data.py,
-or falls back to cleaning the raw CSVs directly.
+Uses the cleaned dataset (clash_royale_clean.parquet) produced by 
+preprocess_clash_royale_data.py, or falls back to cleaning the raw CSVs directly.
+Target: target_win (1 = player1 win, 0 = player1 loss; ties removed).
 Card IDs are mapped to human-readable names via the Clash Royale API.
 """
 
@@ -15,7 +16,17 @@ import requests
 import seaborn as sns
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from load_data import load_polars, COLS
+import importlib.util
+
+# Dynamic import for renamed module
+spec = importlib.util.spec_from_file_location(
+    "load_data_module", 
+    Path(__file__).resolve().parent / "01_load_data.py"
+)
+load_data_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(load_data_module)
+load_polars = load_data_module.load_polars
+COLS = load_data_module.COLS
 
 # ----------------------------
 # Paths
@@ -48,7 +59,7 @@ def load_clean_data() -> pl.DataFrame:
     if PROCESSED_CSV.exists():
         return pl.read_csv(PROCESSED_CSV)
 
-    # Fall back: load raw and apply the same cleaning pipeline
+    # Fall back: load raw and apply the same cleaning pipeline as preprocess_clash_royale_data.py
     print("Cleaned data not found – loading and cleaning raw CSVs …")
     df = load_polars()
 
@@ -72,6 +83,7 @@ def load_clean_data() -> pl.DataFrame:
         .drop_nulls()
         .filter(pl.col("player1.crowns").is_between(0, 3))
         .filter(pl.col("player2.crowns").is_between(0, 3))
+        .filter(pl.col("player1.crowns") != pl.col("player2.crowns"))  # Remove ties before creating target
         .filter(pl.col("player1.trophies") >= 0)
         .filter(pl.col("player2.trophies") >= 0)
         .filter(pl.col("player1.tag") != pl.col("player2.tag"))
@@ -84,7 +96,7 @@ def load_clean_data() -> pl.DataFrame:
         .unique()
         .unique(subset=["datetime", "player1.tag", "player2.tag", "gamemode"], keep="first")
         .with_columns([
-            (pl.col("player1.crowns") > pl.col("player2.crowns")).cast(pl.Int8).alias("win_label"),
+            (pl.col("player1.crowns") > pl.col("player2.crowns")).cast(pl.Int8).alias("target_win"),
             (pl.col("player1.crowns") - pl.col("player2.crowns")).alias("crown_diff"),
             (pl.col("player1.trophies") - pl.col("player2.trophies")).alias("trophy_diff"),
         ])
@@ -114,22 +126,22 @@ def card_win_rates(df: pl.DataFrame) -> pl.DataFrame:
         – times_played  (appearances across all matches, both sides)
         – wins           (appearances on the winning side)
         – win_rate        wins / times_played
-    Player 1 wins when win_label == 1; player 2 wins when win_label == 0.
+    Player 1 wins when target_win == 1; player 2 wins when target_win == 0.
     """
     # Player 1 cards
     p1 = (
-        df.select(P1_CARDS + ["win_label"])
-        .unpivot(index="win_label", variable_name="slot", value_name="card")
+        df.select(P1_CARDS + ["target_win"])
+        .unpivot(index="target_win", variable_name="slot", value_name="card")
         .drop("slot")
-        .with_columns(pl.col("win_label").alias("won"))
+        .with_columns(pl.col("target_win").alias("won"))
     )
 
-    # Player 2 cards – win when win_label == 0
+    # Player 2 cards – win when target_win == 0
     p2 = (
-        df.select(P2_CARDS + ["win_label"])
-        .unpivot(index="win_label", variable_name="slot", value_name="card")
+        df.select(P2_CARDS + ["target_win"])
+        .unpivot(index="target_win", variable_name="slot", value_name="card")
         .drop("slot")
-        .with_columns((1 - pl.col("win_label")).cast(pl.Int8).alias("won"))
+        .with_columns((1 - pl.col("target_win")).cast(pl.Int8).alias("won"))
     )
 
     combined = pl.concat([p1.select("card", "won"), p2.select("card", "won")])
@@ -160,17 +172,17 @@ def deck_win_rates(df: pl.DataFrame, min_appearances: int = 5) -> pl.DataFrame:
         df.with_columns(
             pl.concat_list(P1_CARDS).list.sort().list.eval(pl.element().cast(pl.Utf8)).list.join(",").alias("deck")
         )
-        .select("deck", "win_label")
-        .rename({"win_label": "won"})
+        .select("deck", "target_win")
+        .rename({"target_win": "won"})
     )
 
     p2_deck = (
         df.with_columns(
             pl.concat_list(P2_CARDS).list.sort().list.eval(pl.element().cast(pl.Utf8)).list.join(",").alias("deck")
         )
-        .select("deck", "win_label")
-        .with_columns((1 - pl.col("win_label")).cast(pl.Int8).alias("won"))
-        .drop("win_label")
+        .select("deck", "target_win")
+        .with_columns((1 - pl.col("target_win")).cast(pl.Int8).alias("won"))
+        .drop("target_win")
     )
 
     combined = pl.concat([p1_deck, p2_deck])
