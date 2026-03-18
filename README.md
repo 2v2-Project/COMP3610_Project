@@ -20,10 +20,10 @@ python -m py_compile scr\preprocess_clash_royale_data.py
 
 # 6) Run preprocessing pipeline
 # Run load script
-    python scr\load_data.py
+python scr\load_data.py
 
 # Run preprocess script
-    python scr\preprocess_clash_royale_data.py
+python scr\preprocess_clash_royale_data.py
 
 ## Dataset
 
@@ -40,3 +40,61 @@ To reproduce the experiments:
 3. Place a few CSV files (e.g., `20231002.csv`, `20231003.csv`) in:
 
 data/raw/
+
+## Run the Pipeline by Phase
+
+### Phase 1 — Loading + Preprocessing
+
+Run from the project root:
+
+```powershell
+python scr\load_data.py
+python scr\preprocess_clash_royale_data.py
+```
+
+Expected Phase 1 outputs in `data/processed/`:
+
+1. `clash_royale_clean.csv`
+2. `clash_royale_clean.parquet`
+3. `load_benchmark.csv`
+
+---
+
+Core Feature Engineering
+
+Run from the project root:
+
+```powershell
+python scr\phase2_core_feature_engineering.py
+```
+
+Optional quick smoke test:
+
+```powershell
+python scr\phase2_core_feature_engineering.py --limit 5000
+```
+
+Expected Phase 2 outputs in `data/processed/`:
+
+1. `card_list.csv`
+2. `card_metadata.csv` (optional metadata scaffold)
+3. `player_card_feature_matrix.parquet`
+4. `opponent_card_feature_matrix.parquet`
+
+---
+
+## Full Run (End-to-End)
+
+If you want to run everything in order:
+
+```powershell
+python scr\load_data.py
+python scr\preprocess_clash_royale_data.py
+python scr\phase2_core_feature_engineering.py
+```
+
+You can verify outputs with:
+
+```powershell
+Get-ChildItem -Path data/processed | Select-Object Name,Length
+```
