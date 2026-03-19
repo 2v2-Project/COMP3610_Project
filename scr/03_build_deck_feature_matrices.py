@@ -51,14 +51,12 @@ def build_card_list(data: pl.DataFrame) -> pl.DataFrame:
         .sort("card_id")
     )
 
-    card_list = card_ids.with_columns(
+    return card_ids.with_columns(
         [
             pl.format("card_{}", pl.col("card_id")).alias("player_feature_column"),
             pl.format("opp_card_{}", pl.col("card_id")).alias("opponent_feature_column"),
         ]
     )
-
-    return card_list
 
 
 def build_player_matrix(data: pl.DataFrame, card_ids: list[int]) -> pl.DataFrame:
@@ -113,13 +111,12 @@ def fetch_card_metadata() -> list[dict]:
         return []
 
 
-def fetch_card_elixir_costs() -> dict[int, int]:
+def extract_elixir_costs(cards: list[dict]) -> dict[int, int]:
     """
-    Extract a mapping of card_id -> elixir_cost from API metadata.
+    Extract a mapping of card_id -> elixir_cost from already-fetched API metadata.
     """
-    cards = fetch_card_metadata()
-
     elixir_costs: dict[int, int] = {}
+
     for card in cards:
         card_id = card.get("id")
         elixir = card.get("elixir")
@@ -135,12 +132,39 @@ def fetch_card_elixir_costs() -> dict[int, int]:
     return elixir_costs
 
 
-def build_card_metadata_from_api(card_list: pl.DataFrame) -> pl.DataFrame:
+def extract_card_types(cards: list[dict]) -> dict[int, str]:
     """
-    Build card metadata table using API data when available.
-    Falls back to placeholder metadata if the API is unavailable.
+    Extract a mapping of card_id -> normalized card_type from already-fetched API metadata.
+
+    Supported normalized values:
+    - troop
+    - spell
+    - building
     """
-    cards = fetch_card_metadata()
+    card_types: dict[int, str] = {}
+
+    for card in cards:
+        card_id = card.get("id")
+        card_type = card.get("type")
+
+        if card_id is None or card_type is None:
+            continue
+
+        try:
+            normalized = str(card_type).strip().lower()
+            if normalized in {"troop", "spell", "building"}:
+                card_types[int(card_id)] = normalized
+        except (TypeError, ValueError):
+            continue
+
+    return card_types
+
+
+def build_card_metadata_from_api(card_list: pl.DataFrame, cards: list[dict]) -> pl.DataFrame:
+    """
+    Build card metadata table using already-fetched API data.
+    Falls back to placeholder metadata if the API data is unavailable.
+    """
     if not cards:
         return build_optional_card_metadata(card_list)
 
@@ -182,69 +206,180 @@ def build_card_metadata_from_api(card_list: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def compute_elixir_features(
+def compute_deck_summary_features(
     data: pl.DataFrame,
     card_cols: list[str],
     elixir_costs: dict[int, int],
+    card_types: dict[int, str],
     prefix: str,
 ) -> pl.DataFrame:
     """
-    Compute deck-level elixir features for a given set of card columns.
+    Compute deck-level summary features.
 
-    Features:
+    Elixir features:
     - {prefix}_avg_elixir
-    - {prefix}_low_cost_cards   (elixir <= 3)
+    - {prefix}_low_cost_cards    (elixir <= 3)
     - {prefix}_medium_cost_cards (elixir == 4)
-    - {prefix}_high_cost_cards  (elixir >= 5)
+    - {prefix}_high_cost_cards   (elixir >= 5)
+
+    Cycle-speed features:
+    - {prefix}_cycle_cards       (elixir <= 2)
+    - {prefix}_cycle_ratio       (cycle_cards / 8)
+
+    Card type distribution features:
+    - {prefix}_troop_count
+    - {prefix}_spell_count
+    - {prefix}_building_count
     """
-    base = data.select(pl.int_range(0, pl.len()).alias("match_id"))
-
-    if not elixir_costs:
-        return base.with_columns(
-            [
-                pl.lit(None, dtype=pl.Float64).alias(f"{prefix}_avg_elixir"),
-                pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_low_cost_cards"),
-                pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_medium_cost_cards"),
-                pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_high_cost_cards"),
-            ]
-        )
-
-    temp_columns = []
+    temp_elixir_columns = []
+    temp_type_columns = []
     select_exprs = [pl.int_range(0, pl.len()).alias("match_id")]
 
     for col_name in card_cols:
-        mapped = (
-            pl.col(col_name)
-            .replace_strict(elixir_costs, default=None)
-            .cast(pl.Int32)
-            .alias(f"_elixir_{col_name}")
-        )
-        select_exprs.append(mapped)
-        temp_columns.append(f"_elixir_{col_name}")
+        if elixir_costs:
+            mapped_elixir = (
+                pl.col(col_name)
+                .replace_strict(elixir_costs, default=None)
+                .cast(pl.Int32)
+                .alias(f"_elixir_{col_name}")
+            )
+        else:
+            mapped_elixir = pl.lit(None, dtype=pl.Int32).alias(f"_elixir_{col_name}")
 
-    features = (
+        if card_types:
+            mapped_type = (
+                pl.col(col_name)
+                .replace_strict(card_types, default=None)
+                .cast(pl.Utf8)
+                .alias(f"_type_{col_name}")
+            )
+        else:
+            mapped_type = pl.lit(None, dtype=pl.Utf8).alias(f"_type_{col_name}")
+
+        select_exprs.append(mapped_elixir)
+        select_exprs.append(mapped_type)
+        temp_elixir_columns.append(f"_elixir_{col_name}")
+        temp_type_columns.append(f"_type_{col_name}")
+
+    if elixir_costs:
+        avg_elixir_expr = (
+            pl.concat_list(temp_elixir_columns)
+            .list.mean()
+            .alias(f"{prefix}_avg_elixir")
+        )
+
+        low_cost_expr = (
+            pl.sum_horizontal(
+                [
+                    pl.when(pl.col(temp_col) <= 3).then(1).otherwise(0)
+                    for temp_col in temp_elixir_columns
+                ]
+            )
+            .cast(pl.Int32)
+            .alias(f"{prefix}_low_cost_cards")
+        )
+
+        medium_cost_expr = (
+            pl.sum_horizontal(
+                [
+                    pl.when(pl.col(temp_col) == 4).then(1).otherwise(0)
+                    for temp_col in temp_elixir_columns
+                ]
+            )
+            .cast(pl.Int32)
+            .alias(f"{prefix}_medium_cost_cards")
+        )
+
+        high_cost_expr = (
+            pl.sum_horizontal(
+                [
+                    pl.when(pl.col(temp_col) >= 5).then(1).otherwise(0)
+                    for temp_col in temp_elixir_columns
+                ]
+            )
+            .cast(pl.Int32)
+            .alias(f"{prefix}_high_cost_cards")
+        )
+
+        cycle_cards_expr = (
+            pl.sum_horizontal(
+                [
+                    pl.when(pl.col(temp_col) <= 2).then(1).otherwise(0)
+                    for temp_col in temp_elixir_columns
+                ]
+            )
+            .cast(pl.Int32)
+            .alias(f"{prefix}_cycle_cards")
+        )
+
+        cycle_ratio_expr = (
+            pl.sum_horizontal(
+                [
+                    pl.when(pl.col(temp_col) <= 2).then(1).otherwise(0)
+                    for temp_col in temp_elixir_columns
+                ]
+            ).cast(pl.Float32)
+            / pl.lit(8.0)
+        ).alias(f"{prefix}_cycle_ratio")
+    else:
+        avg_elixir_expr = pl.lit(None, dtype=pl.Float64).alias(f"{prefix}_avg_elixir")
+        low_cost_expr = pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_low_cost_cards")
+        medium_cost_expr = pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_medium_cost_cards")
+        high_cost_expr = pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_high_cost_cards")
+        cycle_cards_expr = pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_cycle_cards")
+        cycle_ratio_expr = pl.lit(None, dtype=pl.Float32).alias(f"{prefix}_cycle_ratio")
+
+    if card_types:
+        troop_count_expr = (
+            pl.sum_horizontal(
+                [
+                    pl.when(pl.col(type_col) == "troop").then(1).otherwise(0)
+                    for type_col in temp_type_columns
+                ]
+            )
+            .cast(pl.Int32)
+            .alias(f"{prefix}_troop_count")
+        )
+
+        spell_count_expr = (
+            pl.sum_horizontal(
+                [
+                    pl.when(pl.col(type_col) == "spell").then(1).otherwise(0)
+                    for type_col in temp_type_columns
+                ]
+            )
+            .cast(pl.Int32)
+            .alias(f"{prefix}_spell_count")
+        )
+
+        building_count_expr = (
+            pl.sum_horizontal(
+                [
+                    pl.when(pl.col(type_col) == "building").then(1).otherwise(0)
+                    for type_col in temp_type_columns
+                ]
+            )
+            .cast(pl.Int32)
+            .alias(f"{prefix}_building_count")
+        )
+    else:
+        troop_count_expr = pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_troop_count")
+        spell_count_expr = pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_spell_count")
+        building_count_expr = pl.lit(None, dtype=pl.Int32).alias(f"{prefix}_building_count")
+
+    return (
         data.select(select_exprs)
         .with_columns(
             [
-                pl.concat_list(temp_columns).list.mean().alias(f"{prefix}_avg_elixir"),
-                pl.sum_horizontal(
-                    [
-                        pl.when(pl.col(temp_col) <= 3).then(1).otherwise(0)
-                        for temp_col in temp_columns
-                    ]
-                ).alias(f"{prefix}_low_cost_cards"),
-                pl.sum_horizontal(
-                    [
-                        pl.when(pl.col(temp_col) == 4).then(1).otherwise(0)
-                        for temp_col in temp_columns
-                    ]
-                ).alias(f"{prefix}_medium_cost_cards"),
-                pl.sum_horizontal(
-                    [
-                        pl.when(pl.col(temp_col) >= 5).then(1).otherwise(0)
-                        for temp_col in temp_columns
-                    ]
-                ).alias(f"{prefix}_high_cost_cards"),
+                avg_elixir_expr,
+                low_cost_expr,
+                medium_cost_expr,
+                high_cost_expr,
+                cycle_cards_expr,
+                cycle_ratio_expr,
+                troop_count_expr,
+                spell_count_expr,
+                building_count_expr,
             ]
         )
         .select(
@@ -254,31 +389,37 @@ def compute_elixir_features(
                 f"{prefix}_low_cost_cards",
                 f"{prefix}_medium_cost_cards",
                 f"{prefix}_high_cost_cards",
+                f"{prefix}_cycle_cards",
+                f"{prefix}_cycle_ratio",
+                f"{prefix}_troop_count",
+                f"{prefix}_spell_count",
+                f"{prefix}_building_count",
             ]
         )
     )
 
-    return features
 
-
-def build_elixir_features(
+def build_deck_summary_features(
     data: pl.DataFrame,
     elixir_costs: dict[int, int],
+    card_types: dict[int, str],
 ) -> pl.DataFrame:
     """
-    Build deck elixir features for both player and opponent decks.
+    Build deck summary features for both player and opponent decks.
     """
-    player_features = compute_elixir_features(
+    player_features = compute_deck_summary_features(
         data=data,
         card_cols=PLAYER_CARD_COLS,
         elixir_costs=elixir_costs,
+        card_types=card_types,
         prefix="player",
     )
 
-    opponent_features = compute_elixir_features(
+    opponent_features = compute_deck_summary_features(
         data=data,
         card_cols=OPPONENT_CARD_COLS,
         elixir_costs=elixir_costs,
+        card_types=card_types,
         prefix="opp",
     )
 
@@ -295,26 +436,33 @@ def run_phase2(input_path: Path, output_dir: Path, row_limit: int | None) -> Non
 
     player_matrix = build_player_matrix(data=data, card_ids=card_ids)
     opponent_matrix = build_opponent_matrix(data=data, card_ids=card_ids)
-    card_metadata = build_card_metadata_from_api(card_list)
 
-    elixir_costs = fetch_card_elixir_costs()
-    elixir_features = build_elixir_features(data=data, elixir_costs=elixir_costs)
+    cards = fetch_card_metadata()
+    card_metadata = build_card_metadata_from_api(card_list, cards)
+    elixir_costs = extract_elixir_costs(cards)
+    card_types = extract_card_types(cards)
+    deck_summary_features = build_deck_summary_features(
+        data=data,
+        elixir_costs=elixir_costs,
+        card_types=card_types,
+    )
 
     card_list.write_csv(output_dir / "card_list.csv")
     player_matrix.write_parquet(output_dir / "player_card_feature_matrix.parquet")
     opponent_matrix.write_parquet(output_dir / "opponent_card_feature_matrix.parquet")
     card_metadata.write_csv(output_dir / "card_metadata.csv")
-    elixir_features.write_parquet(output_dir / "deck_elixir_features.parquet")
+    deck_summary_features.write_parquet(output_dir / "deck_elixir_features.parquet")
 
     print(f"Rows processed: {data.height:,}")
     print(f"Unique cards identified: {len(card_ids)}")
     print(f"Card metadata rows: {card_metadata.height:,}")
     print(f"Elixir cost mappings fetched: {len(elixir_costs):,}")
+    print(f"Card type mappings fetched: {len(card_types):,}")
     print(f"card_list saved: {output_dir / 'card_list.csv'}")
     print(f"player matrix saved: {output_dir / 'player_card_feature_matrix.parquet'}")
     print(f"opponent matrix saved: {output_dir / 'opponent_card_feature_matrix.parquet'}")
     print(f"card_metadata saved: {output_dir / 'card_metadata.csv'}")
-    print(f"deck_elixir_features saved: {output_dir / 'deck_elixir_features.parquet'}")
+    print(f"deck summary features saved: {output_dir / 'deck_elixir_features.parquet'}")
 
 
 if __name__ == "__main__":
