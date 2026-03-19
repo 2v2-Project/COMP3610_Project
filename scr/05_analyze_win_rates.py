@@ -379,10 +379,7 @@ def main():
 
     plot_top_decks(d_rates, card_map)
 
-    # --- Save tables ---
-    c_rates.write_csv(OUT_DIR / "card_win_rates.csv")
-    d_rates.write_csv(OUT_DIR / "deck_win_rates.csv")
-    print(f"\nCSV tables saved to {OUT_DIR.resolve()}")
+    print(f"\nVisualizations saved to {OUT_DIR.resolve()}")
 
 
 if __name__ == "__main__":
