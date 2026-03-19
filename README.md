@@ -1,10 +1,26 @@
 # COMP3610_Project
 
-## Just some checks for everybody
-# 1) Create venv (only once)
+## Dataset
+
+This project uses the Clash Royale Games dataset from Kaggle:
+
+https://www.kaggle.com/datasets/s1m0n38/clash-royale-games
+
+To reproduce results:
+
+1. Download the dataset from Kaggle.
+2. Extract the archive.
+3. Place selected daily CSV files in `data/raw/`.
+
+## Setup
+
+Run from project root:
+
+```powershell
+# 1) Create virtual environment (once)
 python -m venv .venv
 
-# 2) Activate it
+# 2) Activate
 .\.venv\Scripts\Activate.ps1
 
 # 3) Upgrade pip
@@ -12,88 +28,63 @@ python -m pip install --upgrade pip
 
 # 4) Install dependencies
 python -m pip install -r requirements.txt
-
-# 5) Quick sanity checks
-python -c "import pandas, polars, duckdb; print('deps ok')"
-python -m py_compile scr\load_data.py
-python -m py_compile scr\preprocess_clash_royale_data.py
-
-# 6) Run preprocessing pipeline
-# Run load script
-python scr\load_data.py
-
-# Run preprocess script
-python scr\preprocess_clash_royale_data.py
-
-## Dataset
-
-This project uses the Clash Royale Games dataset from Kaggle:
-
-https://www.kaggle.com/datasets/s1m0n38/clash-royale-games
-
-Due to the large size of the dataset (~100GB extracted), only a subset of CSV files was used.
-
-To reproduce the experiments:
-
-1. Download the dataset from Kaggle
-2. Extract the archive
-3. Place a few CSV files (e.g., `20231002.csv`, `20231003.csv`) in:
-
-data/raw/
-
-## Run the Pipeline by Phase
-
-### Phase 1 — Loading + Preprocessing
-
-Run from the project root:
-
-```powershell
-python scr\load_data.py
-python scr\preprocess_clash_royale_data.py
 ```
 
-Expected Phase 1 outputs in `data/processed/`:
-
-1. `clash_royale_clean.csv`
-2. `clash_royale_clean.parquet`
-3. `load_benchmark.csv`
-
----
-
-Core Feature Engineering
-
-Run from the project root:
+## Quick Sanity Checks
 
 ```powershell
-python scr\phase2_core_feature_engineering.py
+python -c "import pandas, polars, duckdb, pyarrow; print('deps ok')"
+python -m py_compile scr\01_load_data.py
+python -m py_compile scr\02_preprocess_clash_royale_data.py
+python -m py_compile scr\03_build_deck_feature_matrices.py
+python -m py_compile scr\06_archetype_synergy_features.py
+python -m py_compile scr\07_matchup_features.py
+python -m py_compile scr\08_assemble_final_ml_dataset.py
 ```
 
-Optional quick smoke test:
+## End-to-End Run (All Core Phases)
+
+Run the pipeline in this order:
 
 ```powershell
-python scr\phase2_core_feature_engineering.py --limit 5000
+python scr\01_load_data.py
+python scr\02_preprocess_clash_royale_data.py
+python scr\03_build_deck_feature_matrices.py
+python scr\06_archetype_synergy_features.py
+python scr\07_matchup_features.py
+python scr\08_assemble_final_ml_dataset.py
 ```
 
-Expected Phase 2 outputs in `data/processed/`:
-
-1. `card_list.csv`
-2. `card_metadata.csv` (optional metadata scaffold)
-3. `player_card_feature_matrix.parquet`
-4. `opponent_card_feature_matrix.parquet`
-
----
-
-## Full Run (End-to-End)
-
-If you want to run everything in order:
+Optional analysis scripts (not required for final dataset assembly):
 
 ```powershell
-python scr\load_data.py
-python scr\preprocess_clash_royale_data.py
-python scr\phase2_core_feature_engineering.py
+python scr\04_analyze_common_cards.py
+python scr\05_analyze_win_rates.py
 ```
 
-You can verify outputs with:
+## Expected Outputs (data/processed)
+
+Core preprocessing and feature outputs:
+
+- `clash_royale_clean.csv`
+- `clash_royale_clean.parquet`
+- `load_benchmark.csv`
+- `card_list.csv`
+- `card_metadata.csv`
+- `player_card_feature_matrix.parquet`
+- `opponent_card_feature_matrix.parquet`
+- `deck_elixir_features.parquet`
+- `archetype_features.parquet`
+- `synergy_features.parquet`
+- `archetype_synergy_features.parquet`
+- `matchup_features.parquet`
+- `opponent_elixir_features.parquet`
+- `matchup_deck_diff_features.parquet`
+- `final_ml_dataset.parquet`
+- `clean_training_dataset.parquet`
+- `final_dataset_quality_report.json`
+
+Verify outputs:
 
 ```powershell
 Get-ChildItem -Path data/processed | Select-Object Name,Length
