@@ -48,8 +48,8 @@ def detect_target_column(clean_df: pl.DataFrame) -> str:
 
 def ensure_match_id(df: pl.DataFrame) -> pl.DataFrame:
     if "match_id" in df.columns:
-        return df
-    return df.with_row_index("match_id")
+        return df.with_columns(pl.col("match_id").cast(pl.Int64))
+    return df.with_row_index("match_id").with_columns(pl.col("match_id").cast(pl.Int64))
 
 
 def select_archetype_and_synergy_columns(df: pl.DataFrame) -> pl.DataFrame:
@@ -74,8 +74,9 @@ def validate_unique_match_id(df: pl.DataFrame, label: str) -> None:
 
 
 def join_feature_tables(tables: list[pl.DataFrame]) -> pl.DataFrame:
-    assembled = tables[0]
-    for table in tables[1:]:
+    normalized = [ensure_match_id(table) for table in tables]
+    assembled = normalized[0]
+    for table in normalized[1:]:
         assembled = assembled.join(table, on="match_id", how="inner")
     return assembled
 

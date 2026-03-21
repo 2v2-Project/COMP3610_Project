@@ -254,8 +254,14 @@ def run_phase4(input_clean: Path, input_elixir: Path,
     if row_limit:
         elixir_df = elixir_df.head(row_limit)
 
-    # Add match_id to main data for joining
-    df = df.with_row_index("match_id")
+    # Add match_id to main data for joining.
+    # Cast to Int64 to match parquet-loaded join keys consistently.
+    df = df.with_row_index("match_id").with_columns(
+        pl.col("match_id").cast(pl.Int64)
+    )
+
+    # Normalize join key dtype on the right side as well.
+    elixir_df = elixir_df.with_columns(pl.col("match_id").cast(pl.Int64))
 
     # Join avg_elixir columns needed by archetype rules
     df = df.join(
