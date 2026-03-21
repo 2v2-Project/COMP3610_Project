@@ -210,6 +210,7 @@ __marimo__/
 data/
 *.csv
 *.zip
+*.json
 
 # macOS
 .DS_Store
@@ -226,3 +227,7 @@ Thumbs.db
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Model artifacts
+*.pkl
+models/
