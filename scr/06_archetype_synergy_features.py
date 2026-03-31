@@ -17,7 +17,6 @@ import argparse
 from pathlib import Path
 
 import polars as pl
-import requests
 
 # ------------------------------------------------------------------
 # Default paths
@@ -28,8 +27,6 @@ OUTPUT_DIR = Path("data/processed")
 
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]
-
-CARD_API_URL = "https://royaleapi.github.io/cr-api-data/json/cards.json"
 
 # ------------------------------------------------------------------
 # Card-ID constants (from Royale API)
@@ -223,17 +220,6 @@ def build_synergy_features(df: pl.DataFrame, card_cols: list[str],
 # ==================================================================
 # Pipeline
 # ==================================================================
-
-def fetch_card_names() -> dict[int, str]:
-    """Download card metadata and return {card_id: card_name}."""
-    try:
-        resp = requests.get(CARD_API_URL, timeout=20)
-        resp.raise_for_status()
-        return {int(c["id"]): c["name"] for c in resp.json()}
-    except Exception as e:
-        print(f"Could not fetch card names: {e}")
-        return {}
-
 
 def run_phase4(input_clean: Path, input_elixir: Path,
                output_dir: Path, row_limit: int | None) -> None:

@@ -4,11 +4,11 @@ import argparse
 from pathlib import Path
 
 import polars as pl
-import requests
+
+from utils.metadata_utils import get_raw_cards, get_elixir_costs, get_card_types
 
 INPUT_DEFAULT = Path("data/processed/clash_royale_clean.parquet")
 OUTPUT_DIR_DEFAULT = Path("data/processed")
-CARD_API_URL = "https://royaleapi.github.io/cr-api-data/json/cards.json"
 
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]
@@ -94,70 +94,6 @@ def build_optional_card_metadata(card_list: pl.DataFrame) -> pl.DataFrame:
             pl.lit("metadata_not_available_in_source").alias("metadata_status"),
         ]
     )
-
-
-def fetch_card_metadata() -> list[dict]:
-    """
-    Fetch Clash Royale card metadata from the Royale API.
-    Returns a list of card metadata dicts.
-    If the API is unavailable, returns an empty list.
-    """
-    try:
-        response = requests.get(CARD_API_URL, timeout=15)
-        response.raise_for_status()
-        return response.json()
-    except Exception as error:
-        print(f"Could not fetch card metadata: {error}")
-        return []
-
-
-def extract_elixir_costs(cards: list[dict]) -> dict[int, int]:
-    """
-    Extract a mapping of card_id -> elixir_cost from already-fetched API metadata.
-    """
-    elixir_costs: dict[int, int] = {}
-
-    for card in cards:
-        card_id = card.get("id")
-        elixir = card.get("elixir")
-
-        if card_id is None or elixir is None:
-            continue
-
-        try:
-            elixir_costs[int(card_id)] = int(elixir)
-        except (TypeError, ValueError):
-            continue
-
-    return elixir_costs
-
-
-def extract_card_types(cards: list[dict]) -> dict[int, str]:
-    """
-    Extract a mapping of card_id -> normalized card_type from already-fetched API metadata.
-
-    Supported normalized values:
-    - troop
-    - spell
-    - building
-    """
-    card_types: dict[int, str] = {}
-
-    for card in cards:
-        card_id = card.get("id")
-        card_type = card.get("type")
-
-        if card_id is None or card_type is None:
-            continue
-
-        try:
-            normalized = str(card_type).strip().lower()
-            if normalized in {"troop", "spell", "building"}:
-                card_types[int(card_id)] = normalized
-        except (TypeError, ValueError):
-            continue
-
-    return card_types
 
 
 def build_card_metadata_from_api(card_list: pl.DataFrame, cards: list[dict]) -> pl.DataFrame:
@@ -437,10 +373,10 @@ def run_phase2(input_path: Path, output_dir: Path, row_limit: int | None) -> Non
     player_matrix = build_player_matrix(data=data, card_ids=card_ids)
     opponent_matrix = build_opponent_matrix(data=data, card_ids=card_ids)
 
-    cards = fetch_card_metadata()
+    cards = get_raw_cards()
     card_metadata = build_card_metadata_from_api(card_list, cards)
-    elixir_costs = extract_elixir_costs(cards)
-    card_types = extract_card_types(cards)
+    elixir_costs = get_elixir_costs()
+    card_types = get_card_types()
     deck_summary_features = build_deck_summary_features(
         data=data,
         elixir_costs=elixir_costs,

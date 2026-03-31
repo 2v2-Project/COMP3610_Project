@@ -12,8 +12,9 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import polars as pl
-import requests
 import seaborn as sns
+
+from utils.metadata_utils import get_card_names
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import importlib.util
@@ -42,8 +43,6 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 # ----------------------------
 P1_CARDS = [f"player1.card{i}" for i in range(1, 9)]
 P2_CARDS = [f"player2.card{i}" for i in range(1, 9)]
-
-CARD_API = "https://royaleapi.github.io/cr-api-data/json/cards.json"
 
 # ----------------------------
 # Load / clean helpers
@@ -103,17 +102,6 @@ def load_clean_data() -> pl.DataFrame:
         .drop(["p1_unique_cards", "p2_unique_cards"])
     )
     return df
-
-
-def fetch_card_names() -> dict[int, str]:
-    """Download card metadata and return {card_id: card_name}."""
-    try:
-        resp = requests.get(CARD_API, timeout=20)
-        resp.raise_for_status()
-        return {int(c["id"]): c["name"] for c in resp.json()}
-    except Exception as e:
-        print(f"Could not fetch card names: {e}")
-        return {}
 
 
 # ----------------------------
@@ -344,7 +332,7 @@ def main():
     df = load_clean_data()
     print(f"Loaded {df.height:,} matches")
 
-    card_map = fetch_card_names()
+    card_map = get_card_names()
 
     # --- Card‑level win rates ---
     c_rates = card_win_rates(df)
