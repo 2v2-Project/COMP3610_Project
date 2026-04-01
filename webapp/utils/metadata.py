@@ -48,22 +48,13 @@ def get_raw_cards(force_refresh: bool = False) -> list[dict]:
     return _load_raw_cards_cached(force_refresh=force_refresh)
 
 
+CDN_BASE = "https://cdn.royaleapi.com/static/img/cards-150"
+
+
 def _extract_icon_url(card: dict) -> str | None:
-    icon_data = card.get("iconUrls")
-
-    if not isinstance(icon_data, dict):
-        return None
-
-    icon_url = (
-        icon_data.get("medium")
-        or icon_data.get("evolutionMedium")
-        or icon_data.get("base")
-        or icon_data.get("evolution")
-    )
-
-    if isinstance(icon_url, str) and icon_url.strip():
-        return icon_url.strip()
-
+    key = card.get("key")
+    if isinstance(key, str) and key.strip():
+        return f"{CDN_BASE}/{key.strip()}.png"
     return None
 
 
@@ -176,6 +167,27 @@ def get_card_metadata(force_refresh: bool = False) -> pd.DataFrame:
     CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(CACHE_PATH, index=False)
     return df
+
+
+def get_card_details(force_refresh: bool = False) -> dict[int, dict]:
+    """Return full card info keyed by card_id for popup display."""
+    cards = get_raw_cards(force_refresh=force_refresh)
+    details: dict[int, dict] = {}
+    for card in cards:
+        try:
+            card_id = int(card.get("id"))
+        except (TypeError, ValueError):
+            continue
+        details[card_id] = {
+            "name": card.get("name", "Unknown"),
+            "elixir": card.get("elixir"),
+            "type": card.get("type", "Unknown"),
+            "rarity": card.get("rarity", "Unknown"),
+            "arena": card.get("arena"),
+            "description": card.get("description", ""),
+            "icon_url": _extract_icon_url(card),
+        }
+    return details
 
 
 def main():
