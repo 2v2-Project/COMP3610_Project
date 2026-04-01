@@ -20,15 +20,100 @@ from utils.deck_helpers import (
 
 st.set_page_config(page_title="Popular Decks", layout="wide")
 
+# ---------------------------------------------------------------------------
+# RoyaleAPI-inspired dark theme CSS
+# ---------------------------------------------------------------------------
 st.markdown(
     """
     <style>
+    /* ---- Page background ---- */
+    section.main > div { max-width: 1100px; margin: auto; }
+
+    /* ---- Metric tiles ---- */
     div[data-testid="stMetric"] {
-        background-color: rgba(255,255,255,0.02);
-        border: 1px solid rgba(255,255,255,0.08);
-        padding: 12px;
-        border-radius: 14px;
+        background-color: #1e2a3a;
+        border: 1px solid #2d3f54;
+        padding: 10px 14px;
+        border-radius: 8px;
     }
+    div[data-testid="stMetric"] label { color: #94a3b8 !important; font-size: 12px !important; }
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #e2e8f0 !important; font-size: 18px !important; }
+
+    /* ---- Deck card container ---- */
+    .deck-tile {
+        background: #1a2332;
+        border: 1px solid #2d3f54;
+        border-radius: 10px;
+        padding: 18px 22px;
+        margin-bottom: 14px;
+    }
+
+    /* ---- Win/loss bar ---- */
+    .winloss-bar {
+        display: flex;
+        height: 8px;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 6px 0 10px 0;
+    }
+    .winloss-bar .win-segment  { background: #4ade80; }
+    .winloss-bar .loss-segment { background: #f87171; }
+
+    /* ---- Stats table ---- */
+    .stats-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    .stats-table th {
+        background: #253347;
+        color: #94a3b8;
+        font-size: 13px;
+        font-weight: 600;
+        padding: 8px 10px;
+        text-align: center;
+        border-bottom: 1px solid #2d3f54;
+    }
+    .stats-table td {
+        color: #e2e8f0;
+        font-size: 15px;
+        padding: 8px 10px;
+        text-align: center;
+    }
+    .stats-table .win-val  { color: #4ade80; }
+    .stats-table .loss-val { color: #f87171; }
+
+    /* ---- Elixir / Cycle info row ---- */
+    .elixir-cycle-row {
+        display: flex; align-items: center; gap: 24px; margin-top: 14px;
+    }
+    .elixir-cycle-row .stat-item {
+        display: flex; align-items: center; gap: 6px;
+    }
+    .elixir-cycle-row .stat-item span {
+        color: #e2e8f0; font-size: 14px; font-weight: 600;
+    }
+
+    /* ---- Sidebar ---- */
+    section[data-testid="stSidebar"] { background: #0f1923; }
+    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2,
+    section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] label { color: #e2e8f0 !important; }
+
+    /* ---- Confidence badges ---- */
+    .conf-badge {
+        display: inline-block; padding: 4px 12px; border-radius: 999px;
+        font-weight: 600; font-size: 12px; color: white; margin-top: 4px;
+    }
+    .conf-high   { background: #16a34a; }
+    .conf-medium { background: #f59e0b; }
+    .conf-low    { background: #ef4444; }
+
+    /* ---- Deck header row ---- */
+    .deck-header {
+        display: flex; align-items: center; gap: 12px;
+        margin-bottom: 10px; color: #94a3b8; font-size: 13px;
+    }
+    .deck-header .archetype-tag {
+        background: #253347; padding: 5px 14px; border-radius: 6px;
+        font-weight: 700; color: #e2e8f0; font-size: 16px;
+    }
+
     </style>
     """,
     unsafe_allow_html=True,
@@ -112,116 +197,130 @@ def build_popular_decks_table(min_matches: int) -> pd.DataFrame:
     return result
 
 
-def render_confidence_badge(confidence: str):
-    color_map = {
-        "High": "#16a34a",
-        "Medium": "#f59e0b",
-        "Low": "#ef4444",
-    }
-    color = color_map.get(confidence, "#6b7280")
+# ---------------------------------------------------------------------------
+# Icons
+# ---------------------------------------------------------------------------
+ELIXIR_ICON = "https://cdn.royaleapi.com/static/img/ui/elixir.png"
+CARDS_ICON = "https://cdn.royaleapi.com/static/img/ui/cards.png"
 
-    st.markdown(
-        f"""
-        <div style="
-            display: inline-block;
-            padding: 6px 14px;
-            border-radius: 999px;
-            background-color: {color};
-            color: white;
-            font-weight: 600;
-            font-size: 14px;
-            margin-top: 6px;
-        ">
-            {confidence} Confidence
-        </div>
-        """,
-        unsafe_allow_html=True,
+
+# ---------------------------------------------------------------------------
+# Card image renderer
+# ---------------------------------------------------------------------------
+def _render_card_image(card_id: int, icon_map: dict[int, str], name_map: dict[int, str]) -> None:
+    icon_url = icon_map.get(card_id)
+    card_name = name_map.get(card_id, str(card_id))
+    if icon_url and isinstance(icon_url, str) and icon_url.strip():
+        st.image(icon_url, use_container_width=True)
+    else:
+        st.markdown(
+            f"<div style='border:1px solid #333;border-radius:10px;padding:12px 6px;"
+            f"text-align:center;min-height:90px;display:flex;align-items:center;"
+            f"justify-content:center;font-size:12px;color:#bbb;background:#111827'>"
+            f"{card_name}</div>",
+            unsafe_allow_html=True,
+        )
+
+
+# ---------------------------------------------------------------------------
+# Render helpers
+# ---------------------------------------------------------------------------
+def render_winloss_bar(win_rate: float) -> str:
+    """Return HTML for a green/red win-loss bar."""
+    loss_rate = 100.0 - win_rate
+    return (
+        f"<div class='winloss-bar'>"
+        f"<div class='win-segment' style='width:{win_rate:.1f}%'></div>"
+        f"<div class='loss-segment' style='width:{loss_rate:.1f}%'></div>"
+        f"</div>"
     )
 
 
-def render_deck_images(card_ids: list[int], icon_map: dict[int, str], name_map: dict[int, str]) -> None:
-    cols = st.columns(8, gap="small")
+def render_stats_table(row: pd.Series) -> str:
+    """Return an HTML stats table similar to RoyaleAPI."""
+    wins = int(row["wins"])
+    matches = int(row["matches_played"])
+    losses = matches - wins
+    win_pct = row["win_rate"]
 
-    for i, raw_card_id in enumerate(card_ids):
-        with cols[i]:
-            card_id = int(raw_card_id)
-            icon_url = icon_map.get(card_id)
-            card_name = name_map.get(card_id, str(card_id))
-
-            if icon_url and isinstance(icon_url, str) and icon_url.strip():
-                st.image(icon_url, use_container_width=True)
-            else:
-                st.markdown(
-                    f"""
-                    <div style="
-                        border: 1px solid #333;
-                        border-radius: 10px;
-                        padding: 12px 6px;
-                        text-align: center;
-                        min-height: 90px;
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-size: 12px;
-                        color: #bbb;
-                        background-color: #111827;
-                    ">
-                        {card_name}
-                    </div>
-                    """,
-                    unsafe_allow_html=True,
-                )
+    return f"""
+    <table class='stats-table'>
+      <tr>
+        <th>Win Rate</th><th>Matches</th><th>Wins</th><th>Losses</th>
+      </tr>
+      <tr>
+        <td class='win-val'>{win_pct:.1f}%</td>
+        <td>{matches:,}</td>
+        <td class='win-val'>{wins:,}</td>
+        <td class='loss-val'>{losses:,}</td>
+      </tr>
+    </table>
+    """
 
 
-def render_deck_card(row: pd.Series, icon_map: dict[int, str], name_map: dict[int, str]) -> None:
-    deck_names = [name_map.get(int(card_id), str(card_id)) for card_id in row["card_ids"]]
+def render_deck_card(
+    row: pd.Series,
+    icon_map: dict[int, str],
+    name_map: dict[int, str],
+) -> None:
+    conf = row["confidence"]
+    conf_cls = {"High": "conf-high", "Medium": "conf-medium", "Low": "conf-low"}.get(conf, "conf-medium")
 
-    with st.container(border=True):
-        render_deck_images(row["card_ids"], icon_map, name_map)
+    st.markdown(
+        f"<div class='deck-header'>"
+        f"<span class='archetype-tag'>{row['archetype']}</span>"
+        f"<span>{row['troop_count']}T / {row['spell_count']}S / {row['building_count']}B</span>"
+        f"<span class='conf-badge {conf_cls}'>{conf} Confidence</span>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
-        st.markdown("<div style='height: 12px;'></div>", unsafe_allow_html=True)
+    card_col, stats_col = st.columns([1, 1], gap="medium")
 
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("Win Rate", f'{row["win_rate"]:.2f}%')
-        m2.metric("Matches", f'{int(row["matches_played"]):,}')
-        m3.metric("Archetype", row["archetype"])
-        m4.metric("Avg Elixir", f'{row["avg_elixir"]:.2f}')
-        m5.metric("Cycle Cost", int(row["cycle_cost"]))
+    with card_col:
+        top_row = st.columns(4, gap="small")
+        for i in range(4):
+            cid = int(row["card_ids"][i])
+            with top_row[i]:
+                _render_card_image(cid, icon_map, name_map)
 
-        sub1, sub2 = st.columns([1, 2])
+        bottom_row = st.columns(4, gap="small")
+        for i in range(4, 8):
+            cid = int(row["card_ids"][i])
+            with bottom_row[i - 4]:
+                _render_card_image(cid, icon_map, name_map)
 
-        with sub1:
-            render_confidence_badge(row["confidence"])
+    with stats_col:
+        st.markdown(render_winloss_bar(row["win_rate"]), unsafe_allow_html=True)
+        st.markdown(render_stats_table(row), unsafe_allow_html=True)
 
-        with sub2:
-            st.markdown(
-                f"""
-                <div style="
-                    padding-top: 10px;
-                    font-size: 15px;
-                    color: #d1d5db;
-                ">
-                    <strong>Deck Composition:</strong>
-                    {row["troop_count"]} Troops •
-                    {row["spell_count"]} Spells •
-                    {row["building_count"]} Buildings
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
+        st.markdown(
+            f"<div class='elixir-cycle-row'>"
+            f"<div class='stat-item'>"
+            f"<img src='{ELIXIR_ICON}' width='24' height='24'>"
+            f"<span>Avg Elixir : {row['avg_elixir']:.1f}</span>"
+            f"</div>"
+            f"<div class='stat-item'>"
+            f"<img src='{CARDS_ICON}' width='24' height='24'>"
+            f"<span>4-Card Cycle : {int(row['cycle_cost'])}</span>"
+            f"</div>"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
 
-        st.caption(" • ".join(deck_names))
+    st.divider()
 
 
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 def main():
     st.title("🏆 Popular Decks")
     st.markdown(
-        """
-        <div style="margin-bottom: 10px; color: #cbd5e1; font-size: 16px;">
-            Explore the most-played decks in the dataset and compare their historical performance,
-            archetype, and deck profile.
-        </div>
-        """,
+        "<div style='margin-bottom:10px;color:#94a3b8;font-size:15px;'>"
+        "Explore the most-played decks and compare their historical performance, "
+        "archetype, and deck profile. Click any card for details."
+        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -258,11 +357,6 @@ def main():
         )
 
     decks_df = build_popular_decks_table(min_matches=min_matches)
-
-    st.write("Metadata rows:", len(metadata_df))
-    st.write("Icon count:", len(icon_map))
-    st.write("Sample icons:", list(icon_map.items())[:5])
-    st.write("First deck card ids:", decks_df["card_ids"].iloc[0] if not decks_df.empty else "No deck data")
 
     if decks_df.empty:
         st.warning("No decks matched the selected minimum match threshold.")
@@ -314,7 +408,7 @@ def main():
 
     filtered_df = filtered_df.head(top_n).reset_index(drop=True)
 
-    st.markdown("<div style='height: 8px;'></div>", unsafe_allow_html=True)
+    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
     metric1, metric2, metric3, metric4 = st.columns(4)
     metric1.metric("Decks Shown", len(filtered_df))
@@ -322,12 +416,12 @@ def main():
     metric3.metric("Average Elixir", f'{filtered_df["avg_elixir"].mean():.2f}')
     metric4.metric(
         "Top Archetype",
-        filtered_df["archetype"].mode().iloc[0] if not filtered_df.empty else "N/A"
+        filtered_df["archetype"].mode().iloc[0] if not filtered_df.empty else "N/A",
     )
 
     st.divider()
 
-    for _, row in filtered_df.iterrows():
+    for idx, row in filtered_df.iterrows():
         render_deck_card(row, icon_map, name_map)
 
 
