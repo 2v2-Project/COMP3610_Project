@@ -2,7 +2,8 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import polars as pl
-import requests
+
+from utils.metadata_utils import get_card_names
 
 
 # ----------------------------
@@ -23,12 +24,6 @@ P2_CARDS = [f"player2.card{i}" for i in range(1, 9)]
 ALL_CARD_COLS = P1_CARDS + P2_CARDS
 
 
-# ----------------------------
-# Card metadata API
-# ----------------------------
-CARD_API = "https://royaleapi.github.io/cr-api-data/json/cards.json"
-
-
 def load_clean_data() -> pl.DataFrame:
     """
     Load the cleaned dataset.
@@ -42,30 +37,6 @@ def load_clean_data() -> pl.DataFrame:
     raise FileNotFoundError(
         "Cleaned dataset not found. Run preprocessing first."
     )
-
-
-def fetch_card_names() -> dict[int, str]:
-    """
-    Download Clash Royale card metadata
-    and build {card_id: card_name}.
-    """
-    try:
-        response = requests.get(CARD_API, timeout=20)
-        response.raise_for_status()
-
-        cards = response.json()
-
-        card_map = {
-            int(card["id"]): card["name"]
-            for card in cards
-        }
-
-        print(f"Fetched {len(card_map)} card names.")
-        return card_map
-
-    except Exception as e:
-        print(f"Could not fetch card names: {e}")
-        return {}
 
 
 def count_cards(df: pl.DataFrame, card_cols: list[str]) -> pl.DataFrame:
@@ -233,7 +204,8 @@ def main():
     df = load_clean_data()
     print(f"Loaded cleaned data: {df.height:,} rows")
 
-    card_map = fetch_card_names()
+    card_map = get_card_names()
+    print(f"Fetched {len(card_map)} card names.")
 
     # --- Top cards ---
     card_counts = count_cards(df, ALL_CARD_COLS)
