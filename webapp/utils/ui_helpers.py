@@ -23,13 +23,31 @@ _THEME_CSS = """
 }
 
 /* ---- Fonts ---- */
-html, body, [class*="st-"], .stMarkdown, .stText, p, li, label,
+html, body, .stMarkdown, .stText, p, li, label,
 div[data-testid="stMetric"] label,
 div[data-testid="stMetric"] div[data-testid="stMetricValue"],
 div[data-testid="stMetricDelta"],
 div[data-testid="stCaptionContainer"],
-.stSelectbox label, .stSlider label, .stTextInput label {
+.stSelectbox label, .stSlider label, .stTextInput label,
+div[data-testid="stMarkdownContainer"],
+div[data-testid="stText"],
+div[data-testid="stCaptionContainer"],
+.stAlert, .stTabs, .stExpander,
+input, select, textarea, button {
     font-family: 'Poppins', sans-serif !important;
+}
+
+/* Preserve Material Symbols icons everywhere — MUST come AFTER the Poppins rule */
+.material-symbols-rounded,
+.material-symbols-outlined,
+span[class*="material-symbols"],
+button[data-testid="stSidebarCollapseButton"] span,
+[data-testid="collapsedControl"] span,
+[data-testid="stSidebarCollapseButton"] span,
+[data-testid="baseButton-headerNoPadding"] span {
+    font-family: 'Material Symbols Rounded' !important;
+    -webkit-font-feature-settings: 'liga' !important;
+    font-feature-settings: 'liga' !important;
 }
 
 /* Supercell-Magic ONLY on page titles (h1 from st.title) */
@@ -60,13 +78,6 @@ section[data-testid="stSidebar"] p,
 }
 section[data-testid="stSidebar"] [data-testid="stSidebarNavLink"]:hover {
     background-color: rgba(255, 255, 255, 0.12) !important;
-}
-
-/* Fix sidebar collapse/expand button — preserve Material Symbols icon font */
-button[data-testid="stSidebarCollapseButton"] span,
-[data-testid="collapsedControl"] span {
-    font-family: 'Material Symbols Rounded', system-ui, sans-serif !important;
-    color: #ffffff !important;
 }
 
 /* Headings (h2, h3) */
