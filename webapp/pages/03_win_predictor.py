@@ -19,6 +19,9 @@ from utils.deck_helpers import (
 
 st.set_page_config(page_title="Win Predictor", layout="wide")
 
+from utils.ui_helpers import inject_fonts
+inject_fonts()
+
 st.markdown(
     """
     <style>
@@ -28,19 +31,20 @@ st.markdown(
     }
 
     div[data-testid="stMetric"] {
-        background-color: #1e2a3a;
-        border: 1px solid #2d3f54;
+        background-color: #ffffff;
+        border: 1px solid #d0dbe8;
         padding: 10px 14px;
-        border-radius: 8px;
+        border-radius: 10px;
+        box-shadow: 0 1px 4px rgba(26, 86, 219, 0.08);
     }
 
     div[data-testid="stMetric"] label {
-        color: #94a3b8 !important;
+        color: #6b7fa3 !important;
         font-size: 12px !important;
     }
 
     div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
-        color: #e2e8f0 !important;
+        color: #1a3a6e !important;
         font-size: 18px !important;
     }
 
@@ -59,16 +63,17 @@ st.markdown(
     .conf-low    { background: #ef4444; }
 
     .note-box {
-        background: #111827;
-        border: 1px solid #253347;
+        background: #ffffff;
+        border: 1px solid #d0dbe8;
         border-radius: 10px;
         padding: 14px 16px;
-        color: #cbd5e1;
+        color: #3b536e;
         font-size: 14px;
+        box-shadow: 0 1px 3px rgba(26, 86, 219, 0.06);
     }
 
     .section-label {
-        color: #94a3b8;
+        color: #6b7fa3;
         font-size: 13px;
         font-weight: 700;
         margin-bottom: 8px;
@@ -77,28 +82,28 @@ st.markdown(
     }
 
     .slot-card {
-        border: 1px dashed #3b4c63;
+        border: 1px dashed #b0c4de;
         border-radius: 10px;
         min-height: 78px;
-        background: #111827;
+        background: #ffffff;
         display: flex;
         align-items: center;
         justify-content: center;
-        color: #94a3b8;
+        color: #6b7fa3;
         font-size: 13px;
         text-align: center;
         padding: 8px;
     }
 
     .deck-helper {
-        color: #94a3b8;
+        color: #6b7fa3;
         font-size: 14px;
         margin-top: 6px;
     }
 
     .card-name {
         text-align: center;
-        color: #cbd5e1;
+        color: #3b536e;
         font-size: 12px;
         line-height: 1.2;
         min-height: 32px;
@@ -117,11 +122,80 @@ st.markdown(
     }
 
     .builder-gap {
-        height: 14px;
+        height: 6px;
     }
 
     .builder-buttons-gap {
         height: 12px;
+    }
+
+    /* Tighter deck columns */
+    .deck-grid [data-testid="stHorizontalBlock"] {
+        gap: 0.35rem !important;
+    }
+
+    /* Hover X overlay on deck cards */
+    .deck-card-wrap {
+        position: relative;
+        display: inline-block;
+        width: 100%;
+    }
+    .deck-card-wrap img {
+        border-radius: 10px;
+        width: 100%;
+    }
+    .deck-card-wrap .remove-x {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(220,38,38,0.85);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        border: none;
+        cursor: pointer;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+        padding: 0;
+    }
+    .deck-card-wrap:hover .remove-x {
+        display: flex;
+    }
+
+    /* Hide remove buttons by default, show on column hover */
+    .deck-grid [data-testid="stColumn"] button {
+        opacity: 0;
+        height: 22px !important;
+        min-height: 22px !important;
+        padding: 0 !important;
+        font-size: 11px !important;
+        margin-top: -4px !important;
+        transition: opacity 0.15s;
+    }
+    .deck-grid [data-testid="stColumn"]:hover button {
+        opacity: 1;
+    }
+
+    /* Elixir badge with icon */
+    .elixir-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        background: #e8f0fe;
+        border-radius: 10px;
+        padding: 1px 6px;
+        font-size: 11px;
+        font-weight: 700;
+        color: #1a3a6e;
+    }
+    .elixir-badge img {
+        width: 13px;
+        height: 13px;
     }
     </style>
     """,
@@ -158,7 +232,7 @@ def load_card_assets():
         "super ",
         "santa ",
         "terry",
-        "party"
+        "party",
         "evolved ",
         "evolution",
         "mirror mode",
@@ -263,7 +337,7 @@ def render_card_image(card_id: int, icon_map: dict[int, str], name_map: dict[int
         st.markdown(
             f"""
             <div style="
-                border:1px solid #333;
+                border:1px solid #c5d5ea;
                 border-radius:10px;
                 padding:8px 6px;
                 text-align:center;
@@ -272,8 +346,8 @@ def render_card_image(card_id: int, icon_map: dict[int, str], name_map: dict[int
                 align-items:center;
                 justify-content:center;
                 font-size:12px;
-                color:#bbb;
-                background:#111827;">
+                color:#6b7fa3;
+                background:#ffffff;">
                 {card_name}
             </div>
             """,
@@ -480,7 +554,7 @@ def main():
     st.title("🎯 Win Predictor")
     st.markdown(
         """
-        <div style='margin-bottom:10px;color:#94a3b8;font-size:15px;'>
+        <div style='margin-bottom:10px;color:#5a7394;font-size:15px;'>
             Build a deck like you would in Clash Royale, then estimate its overall strength against
             the meta using historical deck performance and similar-deck signals.
         </div>
@@ -496,35 +570,77 @@ def main():
     st.markdown("<div class='deck-area'>", unsafe_allow_html=True)
     st.markdown("<div class='section-label'>Your Deck</div>", unsafe_allow_html=True)
 
-    top_slots = st.columns(4, gap="small")
-    for i in range(4):
-        with top_slots[i]:
-            card_id = st.session_state.deck_slots[i]
-            if card_id is None:
-                render_empty_slot(i + 1)
-            else:
-                render_card_image(card_id, icon_map, name_map, small=True)
-                st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-                if st.button("✕", key=f"remove_slot_{i}", use_container_width=True):
-                    remove_card_from_slot(i)
-                    st.rerun()
+    deck_col, stats_panel = st.columns([1, 1], gap="medium")
 
-    st.markdown("<div class='builder-gap'></div>", unsafe_allow_html=True)
+    with deck_col:
+        st.markdown("<div class='deck-grid'>", unsafe_allow_html=True)
+        top_slots = st.columns(4, gap="small")
+        for i in range(4):
+            with top_slots[i]:
+                card_id = st.session_state.deck_slots[i]
+                if card_id is None:
+                    render_empty_slot(i + 1)
+                else:
+                    icon_url = icon_map.get(int(card_id), "")
+                    if icon_url:
+                        st.markdown(
+                            f"<div class='deck-card-wrap'>"
+                            f"<img src='{icon_url}'/>"
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        render_card_image(card_id, icon_map, name_map, small=True)
+                    if st.button("✕", key=f"remove_slot_{i}", help="Remove", use_container_width=True):
+                        remove_card_from_slot(i)
+                        st.rerun()
 
-    bottom_slots = st.columns(4, gap="small")
-    for i in range(4, 8):
-        with bottom_slots[i - 4]:
-            card_id = st.session_state.deck_slots[i]
-            if card_id is None:
-                render_empty_slot(i + 1)
-            else:
-                render_card_image(card_id, icon_map, name_map, small=True)
-                st.markdown("<div style='height:4px'></div>", unsafe_allow_html=True)
-                if st.button("✕", key=f"remove_slot_{i}", use_container_width=True):
-                    remove_card_from_slot(i)
-                    st.rerun()
+        st.markdown("<div class='builder-gap'></div>", unsafe_allow_html=True)
+
+        bottom_slots = st.columns(4, gap="small")
+        for i in range(4, 8):
+            with bottom_slots[i - 4]:
+                card_id = st.session_state.deck_slots[i]
+                if card_id is None:
+                    render_empty_slot(i + 1)
+                else:
+                    icon_url = icon_map.get(int(card_id), "")
+                    if icon_url:
+                        st.markdown(
+                            f"<div class='deck-card-wrap'>"
+                            f"<img src='{icon_url}'/>"
+                            f"</div>",
+                            unsafe_allow_html=True,
+                        )
+                    else:
+                        render_card_image(card_id, icon_map, name_map, small=True)
+                    if st.button("✕", key=f"remove_slot_{i}", help="Remove", use_container_width=True):
+                        remove_card_from_slot(i)
+                        st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
 
     filled_cards = [cid for cid in st.session_state.deck_slots if cid is not None]
+
+    with stats_panel:
+        if filled_cards:
+            live_elixir = compute_avg_elixir(filled_cards, elixir_map)
+            live_cycle = compute_cycle_cost(filled_cards, elixir_map) if len(filled_cards) >= 4 else 0
+            live_troops, live_spells, live_buildings = get_card_type_counts(filled_cards, type_map)
+
+            s1, s2 = st.columns(2)
+            s1.metric("Avg Elixir", f"{live_elixir:.1f}")
+            s2.metric("Cycle Cost", live_cycle if live_cycle else "—")
+            s3, s4, s5 = st.columns(3)
+            s3.metric("Troops", live_troops)
+            s4.metric("Spells", live_spells)
+            s5.metric("Buildings", live_buildings)
+        else:
+            st.markdown(
+                "<div class='note-box'>Add cards to see live deck stats here.</div>",
+                unsafe_allow_html=True,
+            )
+
+        st.caption(f"{len(filled_cards)}/8 cards selected")
 
     st.markdown("<div class='builder-buttons-gap'></div>", unsafe_allow_html=True)
 
@@ -541,18 +657,17 @@ def main():
             disabled=len(filled_cards) != 8,
         )
 
-    st.caption(f"{len(filled_cards)}/8 cards selected")
     st.markdown("</div>", unsafe_allow_html=True)
 
     st.divider()
 
-    with st.expander("Choose Cards", expanded=False):
-        st.markdown("<div class='chooser-area'>", unsafe_allow_html=True)
+    # --- Card chooser grouped by type (hidden when deck is full) ---
+    if len(filled_cards) < 8:
+        st.markdown("<div class='section-label'>Choose Cards</div>", unsafe_allow_html=True)
 
         search_text = st.text_input("Search cards", placeholder="Type a card name...")
 
         available_df = card_df.copy()
-
         if search_text.strip():
             available_df = available_df[
                 available_df["name"].str.contains(search_text.strip(), case=False, na=False)
@@ -561,29 +676,57 @@ def main():
         selected_set = set(filled_cards)
         available_df = available_df[~available_df["card_id"].isin(selected_set)].reset_index(drop=True)
 
-        if available_df.empty:
-            st.info("No cards match your search, or all matching cards are already in your deck.")
-        else:
-            for start in range(0, len(available_df), 6):
-                row_df = available_df.iloc[start:start + 6]
-                cols = st.columns(6, gap="small")
+        # Add type and elixir for grouping/sorting
+        available_df["type"] = available_df["card_id"].map(type_map).fillna("unknown")
+        available_df["elixir"] = available_df["card_id"].map(elixir_map).fillna(0).astype(int)
+        available_df = available_df.sort_values(["elixir", "name"]).reset_index(drop=True)
+
+        ELIXIR_ICON = "https://cdn.royaleapi.com/static/img/ui/elixir.png"
+
+        category_order = [
+            ("Troops", "troop"),
+            ("Spells", "spell"),
+            ("Buildings", "building"),
+        ]
+
+        for label, type_key in category_order:
+            section_df = available_df[available_df["type"] == type_key].reset_index(drop=True)
+            if section_df.empty:
+                continue
+
+            st.markdown(
+                f"<div style='background:#dce6f5;padding:6px 14px;border-radius:6px;"
+                f"color:#1a3a6e;font-weight:700;font-size:14px;margin:12px 0 8px 0;'>"
+                f"{label}</div>",
+                unsafe_allow_html=True,
+            )
+
+            cards_per_row = 8
+            for start in range(0, len(section_df), cards_per_row):
+                row_df = section_df.iloc[start:start + cards_per_row]
+                cols = st.columns(cards_per_row, gap="small")
 
                 for idx, (_, row) in enumerate(row_df.iterrows()):
                     with cols[idx]:
                         cid = int(row["card_id"])
-                        render_card_image(cid, icon_map, name_map, small=True)
-                        st.markdown(
-                            f"<div class='card-name'>{row['name']}</div>",
-                            unsafe_allow_html=True,
-                        )
+                        elixir_cost = elixir_map.get(cid, "")
+                        icon_url = icon_map.get(cid)
+
+                        if icon_url:
+                            st.image(icon_url, use_container_width=True)
+                        if elixir_cost:
+                            st.markdown(
+                                f"<div style='text-align:center'>"
+                                f"<span class='elixir-badge'>"
+                                f"<img src='{ELIXIR_ICON}'/>{elixir_cost}</span>"
+                                f"</div>",
+                                unsafe_allow_html=True,
+                            )
                         if st.button("Add", key=f"add_{cid}", use_container_width=True):
                             if len(filled_cards) < 8:
                                 add_card_to_deck(cid)
                                 st.rerun()
 
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    if len(filled_cards) != 8:
         st.markdown(
             """
             <div class='note-box'>
@@ -592,6 +735,8 @@ def main():
             """,
             unsafe_allow_html=True,
         )
+
+    if len(filled_cards) != 8:
         return
 
     selected_cards = filled_cards

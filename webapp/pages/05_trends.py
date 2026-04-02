@@ -6,7 +6,10 @@ Analyze trends in card usage, win rates, and meta shifts over time.
 
 import streamlit as st
 
+from utils.ui_helpers import inject_fonts
+
 st.set_page_config(page_title="Trends", layout="wide")
+inject_fonts()
 
 st.title("📈 Trends Analysis")
 

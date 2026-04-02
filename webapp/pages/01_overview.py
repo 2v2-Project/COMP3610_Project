@@ -24,6 +24,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 st.set_page_config(page_title="Overview", layout="wide")
 
+from utils.ui_helpers import inject_fonts
+inject_fonts()
+
 # ------------------------------------------------------------------
 # Paths
 # ------------------------------------------------------------------
@@ -137,14 +140,17 @@ with r1c1:
         values="Count",
         color="Outcome",
         color_discrete_map={
-            "Player 1 Win": "#2ecc71",
-            "Player 2 Win": "#e74c3c",
+            "Player 1 Win": "#1a56db",
+            "Player 2 Win": "#93b5f5",
         },
         hole=0.4,
     )
     fig_wl.update_layout(
         margin=dict(t=30, b=10),
         legend=dict(orientation="h", y=-0.1),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#1e3a5f",
     )
     st.plotly_chart(fig_wl, use_container_width=True)
     st.caption(
@@ -165,13 +171,16 @@ with r1c2:
         x="Crowns",
         y="Matches",
         color="Crowns",
-        color_discrete_sequence=px.colors.sequential.Sunset,
+        color_discrete_sequence=["#a3c4f3", "#5b9cf5", "#1a56db", "#0e3a8c"],
         text_auto=True,
     )
     fig_cr.update_layout(
         title="Player 1 Crown Distribution",
         showlegend=False,
         margin=dict(t=40, b=10),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#1e3a5f",
     )
     st.plotly_chart(fig_cr, use_container_width=True)
 
@@ -220,7 +229,7 @@ fig_cards = px.bar(
     orientation="h",
     text=card_usage.iloc[::-1]["usage_pct"].apply(lambda v: f"{v:.2f}%"),
     color="usage_pct",
-    color_continuous_scale="Tealgrn",
+    color_continuous_scale=[[0, "#a3c4f3"], [1, "#1a56db"]],
 )
 fig_cards.update_layout(
     xaxis_title="Usage (%)",
@@ -228,6 +237,9 @@ fig_cards.update_layout(
     coloraxis_showscale=False,
     margin=dict(t=10, b=10),
     height=400,
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font_color="#1e3a5f",
 )
 st.plotly_chart(fig_cards, use_container_width=True)
 
@@ -257,13 +269,16 @@ with r3c1:
         orientation="h",
         text=player_arch.sort_values("Count")["Pct"].apply(lambda v: f"{v:.1f}%"),
         color="Count",
-        color_continuous_scale="Viridis",
+        color_continuous_scale=[[0, "#a3c4f3"], [1, "#1a56db"]],
     )
     fig_arch.update_layout(
         title="Player Archetype Distribution",
         coloraxis_showscale=False,
         margin=dict(t=40, b=10),
         height=400,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#1e3a5f",
     )
     st.plotly_chart(fig_arch, use_container_width=True)
 
@@ -286,7 +301,7 @@ with r3c2:
         orientation="h",
         text=arch_wr["Win Rate"].apply(lambda v: f"{v:.1f}%"),
         color="Win Rate",
-        color_continuous_scale="RdYlGn",
+        color_continuous_scale=[[0, "#ef4444"], [0.5, "#a3c4f3"], [1, "#16a34a"]],
         range_color=[40, 60],
     )
     fig_awr.update_layout(
@@ -294,6 +309,9 @@ with r3c2:
         coloraxis_showscale=False,
         margin=dict(t=40, b=10),
         height=400,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#1e3a5f",
     )
     fig_awr.add_vline(x=50, line_dash="dash", line_color="gray")
     st.plotly_chart(fig_awr, use_container_width=True)
@@ -330,7 +348,7 @@ with r4c1:
         elixir_sample,
         x="player_avg_elixir",
         nbins=40,
-        color_discrete_sequence=["#9b59b6"],
+        color_discrete_sequence=["#1a56db"],
         labels={"player_avg_elixir": "Average Elixir Cost"},
     )
     fig_elixir.update_layout(
@@ -338,10 +356,13 @@ with r4c1:
         yaxis_title="Number of Decks",
         margin=dict(t=40, b=10),
         height=350,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#1e3a5f",
     )
     mean_elixir = float(elixir_stats["mean_elixir"])
     fig_elixir.add_vline(
-        x=mean_elixir, line_dash="dash", line_color="red",
+        x=mean_elixir, line_dash="dash", line_color="#0e3a8c",
         annotation_text=f"Mean: {mean_elixir:.2f}",
     )
     st.plotly_chart(fig_elixir, use_container_width=True)
@@ -351,18 +372,21 @@ with r4c2:
         elixir_sample,
         x="player_cycle_cards",
         nbins=9,
-        color_discrete_sequence=["#1abc9c"],
-        labels={"player_cycle_cards": "Cycle Cards (elixir ≤ 2)"},
+        color_discrete_sequence=["#5b9cf5"],
+        labels={"player_cycle_cards": "Cycle Cards (elixir \u2264 2)"},
     )
     fig_cycle.update_layout(
         title="Cycle Card Count Distribution",
         yaxis_title="Number of Decks",
         margin=dict(t=40, b=10),
         height=350,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#1e3a5f",
     )
     mean_cycle = float(elixir_stats["avg_cycle"])
     fig_cycle.add_vline(
-        x=mean_cycle, line_dash="dash", line_color="red",
+        x=mean_cycle, line_dash="dash", line_color="#0e3a8c",
         annotation_text=f"Mean: {mean_cycle:.1f}",
     )
     st.plotly_chart(fig_cycle, use_container_width=True)
@@ -400,9 +424,9 @@ with r5c1:
         values="Avg Count",
         color="Card Type",
         color_discrete_map={
-            "Troops": "#3498db",
-            "Spells": "#e67e22",
-            "Buildings": "#95a5a6",
+            "Troops": "#1a56db",
+            "Spells": "#5b9cf5",
+            "Buildings": "#a3c4f3",
         },
         hole=0.35,
     )
@@ -410,6 +434,9 @@ with r5c1:
         title="Average Deck Composition (Card Types)",
         margin=dict(t=40, b=10),
         height=350,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#1e3a5f",
     )
     st.plotly_chart(fig_type, use_container_width=True)
 
@@ -422,7 +449,7 @@ with r5c2:
     fig_trophies = px.histogram(
         trophy_sample,
         nbins=50,
-        color_discrete_sequence=["#f39c12"],
+        color_discrete_sequence=["#1a56db"],
         labels={"value": "Trophies"},
     )
     fig_trophies.update_layout(
@@ -431,6 +458,9 @@ with r5c2:
         yaxis_title="Players",
         margin=dict(t=40, b=10),
         height=350,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#1e3a5f",
     )
     st.plotly_chart(fig_trophies, use_container_width=True)
 

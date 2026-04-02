@@ -7,6 +7,175 @@ import streamlit as st
 from typing import List, Optional, Tuple
 import pandas as pd
 
+# ------------------------------------------------------------------
+# Global font + blue-white theme injection
+# ------------------------------------------------------------------
+_THEME_CSS = """
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+@font-face {
+    font-family: 'Supercell-Magic';
+    src: url('https://fonts.cdnfonts.com/s/127237/supercell-magic.woff') format('woff');
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+
+/* ---- Fonts ---- */
+html, body, [class*="st-"], .stMarkdown, .stText, p, li, label,
+div[data-testid="stMetric"] label,
+div[data-testid="stMetric"] div[data-testid="stMetricValue"],
+div[data-testid="stMetricDelta"],
+div[data-testid="stCaptionContainer"],
+.stSelectbox label, .stSlider label, .stTextInput label {
+    font-family: 'Poppins', sans-serif !important;
+}
+
+/* Supercell-Magic ONLY on page titles (h1 from st.title) */
+h1,
+[data-testid="stHeading"] h1 {
+    font-family: 'Supercell-Magic', 'Poppins', sans-serif !important;
+    color: #1a56db !important;
+}
+
+/* ---- Blue & White Theme ---- */
+
+/* Main background */
+.stApp, section.main {
+    background-color: #f0f4fa !important;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #1a3a6e 0%, #1e4d8c 100%) !important;
+}
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+[data-testid="stSidebarNavItems"] span {
+    color: #ffffff !important;
+}
+section[data-testid="stSidebar"] [data-testid="stSidebarNavLink"]:hover {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Fix sidebar collapse/expand button — preserve Material Symbols icon font */
+button[data-testid="stSidebarCollapseButton"] span,
+[data-testid="collapsedControl"] span {
+    font-family: 'Material Symbols Rounded', system-ui, sans-serif !important;
+    color: #ffffff !important;
+}
+
+/* Headings (h2, h3) */
+h2, h3,
+[data-testid="stHeading"] h2,
+[data-testid="stHeading"] h3 {
+    color: #1e3a5f !important;
+}
+
+/* Body text */
+p, li, label, .stMarkdown {
+    color: #2d3748 !important;
+}
+
+/* Metric tiles */
+div[data-testid="stMetric"] {
+    background-color: #ffffff !important;
+    border: 1px solid #d0dbe8 !important;
+    border-radius: 10px !important;
+    box-shadow: 0 1px 4px rgba(26, 86, 219, 0.08) !important;
+    padding: 12px 16px !important;
+}
+div[data-testid="stMetric"] label {
+    color: #6b7fa3 !important;
+}
+div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+    color: #1a3a6e !important;
+}
+div[data-testid="stMetricDelta"] {
+    color: #2563eb !important;
+}
+
+/* Buttons — primary */
+button[data-testid="stBaseButton-primary"],
+.stButton > button[kind="primary"] {
+    background-color: #1a56db !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+}
+button[data-testid="stBaseButton-primary"]:hover {
+    background-color: #1347b8 !important;
+}
+
+/* Buttons — secondary */
+.stButton > button {
+    border: 1px solid #1a56db !important;
+    color: #1a56db !important;
+    background-color: #ffffff !important;
+    border-radius: 8px !important;
+}
+.stButton > button:hover {
+    background-color: #e8f0fe !important;
+}
+
+/* Inputs, selects, sliders */
+div[data-baseweb="select"] > div,
+div[data-baseweb="input"] > div,
+.stTextInput > div > div {
+    background-color: #ffffff !important;
+    border-color: #c5d5ea !important;
+    color: #2d3748 !important;
+    border-radius: 8px !important;
+}
+
+/* Dividers */
+hr, [data-testid="stDivider"] {
+    border-color: #c5d5ea !important;
+}
+
+/* Info / success / warning boxes */
+div[data-testid="stAlert"] {
+    border-radius: 8px !important;
+}
+
+/* Tabs */
+button[data-baseweb="tab"] {
+    color: #6b7fa3 !important;
+}
+button[data-baseweb="tab"][aria-selected="true"] {
+    color: #1a56db !important;
+    border-bottom-color: #1a56db !important;
+}
+
+/* Captions */
+[data-testid="stCaptionContainer"] {
+    color: #8395a7 !important;
+}
+
+/* Expander */
+details[data-testid="stExpander"] {
+    background-color: #ffffff !important;
+    border: 1px solid #d0dbe8 !important;
+    border-radius: 8px !important;
+}
+
+/* Dataframes / tables */
+.stDataFrame, .stTable {
+    background-color: #ffffff !important;
+    border-radius: 8px !important;
+}
+</style>
+"""
+
+
+def inject_fonts():
+    """Inject Supercell-Magic title font, Poppins body font, and blue-white theme. Call once per page."""
+    st.markdown(_THEME_CSS, unsafe_allow_html=True)
+
 
 def render_page_header(title: str, subtitle: Optional[str] = None, icon: Optional[str] = None) -> None:
     """

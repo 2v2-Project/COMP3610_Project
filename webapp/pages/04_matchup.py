@@ -6,7 +6,10 @@ Detailed analysis of card and deck matchups.
 
 import streamlit as st
 
+from utils.ui_helpers import inject_fonts
+
 st.set_page_config(page_title="Matchup Analysis", layout="wide")
+inject_fonts()
 
 st.title("⚔️ Matchup Analysis")
 
