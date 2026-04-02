@@ -89,7 +89,8 @@ with col2:
     **Advanced Features:**
     
     6. 🎨 **Archetype Insights** — Beatdown, Cycle, Siege, Control analysis
-    7. 💡 **Recommendations** — Personalized deck suggestions
+    7. 🎲 **Game Theory** — Payoff matrices, Nash equilibrium, strategy reasoning
+    8. 💡 **Recommendations** — Personalized deck suggestions
     """)
 
 st.divider()
@@ -107,6 +108,7 @@ st.write("""
 **For Advanced Users:**
 - Dive into **Archetype Insights** for strategic analysis
 - Use **Matchup Analysis** for competitive strategy planning
+- Explore **Game Theory** for Nash equilibrium and payoff analysis
 """)
 
 st.divider()
