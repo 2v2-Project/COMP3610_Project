@@ -6,7 +6,10 @@ Deep dive into deck archetypes and their characteristics.
 
 import streamlit as st
 
+from utils.ui_helpers import inject_fonts
+
 st.set_page_config(page_title="Archetype Insights", layout="wide")
+inject_fonts()
 
 st.title("🎨 Archetype Insights")
 

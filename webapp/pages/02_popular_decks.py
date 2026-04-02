@@ -20,6 +20,9 @@ from utils.deck_helpers import (
 
 st.set_page_config(page_title="Popular Decks", layout="wide")
 
+from utils.ui_helpers import inject_fonts
+inject_fonts()
+
 # ---------------------------------------------------------------------------
 # RoyaleAPI-inspired dark theme CSS
 # ---------------------------------------------------------------------------
@@ -29,23 +32,14 @@ st.markdown(
     /* ---- Page background ---- */
     section.main > div { max-width: 1100px; margin: auto; }
 
-    /* ---- Metric tiles ---- */
-    div[data-testid="stMetric"] {
-        background-color: #1e2a3a;
-        border: 1px solid #2d3f54;
-        padding: 10px 14px;
-        border-radius: 8px;
-    }
-    div[data-testid="stMetric"] label { color: #94a3b8 !important; font-size: 12px !important; }
-    div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #e2e8f0 !important; font-size: 18px !important; }
-
     /* ---- Deck card container ---- */
     .deck-tile {
-        background: #1a2332;
-        border: 1px solid #2d3f54;
+        background: #ffffff;
+        border: 1px solid #d0dbe8;
         border-radius: 10px;
         padding: 18px 22px;
         margin-bottom: 14px;
+        box-shadow: 0 1px 4px rgba(26, 86, 219, 0.08);
     }
 
     /* ---- Win/loss bar ---- */
@@ -56,28 +50,28 @@ st.markdown(
         overflow: hidden;
         margin: 6px 0 10px 0;
     }
-    .winloss-bar .win-segment  { background: #4ade80; }
-    .winloss-bar .loss-segment { background: #f87171; }
+    .winloss-bar .win-segment  { background: #22c55e; }
+    .winloss-bar .loss-segment { background: #ef4444; }
 
     /* ---- Stats table ---- */
     .stats-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
     .stats-table th {
-        background: #253347;
-        color: #94a3b8;
+        background: #dce6f5;
+        color: #4a6280;
         font-size: 13px;
         font-weight: 600;
         padding: 8px 10px;
         text-align: center;
-        border-bottom: 1px solid #2d3f54;
+        border-bottom: 1px solid #c5d5ea;
     }
     .stats-table td {
-        color: #e2e8f0;
+        color: #1a3a6e;
         font-size: 15px;
         padding: 8px 10px;
         text-align: center;
     }
-    .stats-table .win-val  { color: #4ade80; }
-    .stats-table .loss-val { color: #f87171; }
+    .stats-table .win-val  { color: #16a34a; }
+    .stats-table .loss-val { color: #dc2626; }
 
     /* ---- Elixir / Cycle info row ---- */
     .elixir-cycle-row {
@@ -87,13 +81,8 @@ st.markdown(
         display: flex; align-items: center; gap: 6px;
     }
     .elixir-cycle-row .stat-item span {
-        color: #e2e8f0; font-size: 14px; font-weight: 600;
+        color: #1a3a6e; font-size: 14px; font-weight: 600;
     }
-
-    /* ---- Sidebar ---- */
-    section[data-testid="stSidebar"] { background: #0f1923; }
-    section[data-testid="stSidebar"] h1, section[data-testid="stSidebar"] h2,
-    section[data-testid="stSidebar"] h3, section[data-testid="stSidebar"] label { color: #e2e8f0 !important; }
 
     /* ---- Confidence badges ---- */
     .conf-badge {
@@ -107,11 +96,11 @@ st.markdown(
     /* ---- Deck header row ---- */
     .deck-header {
         display: flex; align-items: center; gap: 12px;
-        margin-bottom: 10px; color: #94a3b8; font-size: 13px;
+        margin-bottom: 10px; color: #6b7fa3; font-size: 13px;
     }
     .deck-header .archetype-tag {
-        background: #253347; padding: 5px 14px; border-radius: 6px;
-        font-weight: 700; color: #e2e8f0; font-size: 16px;
+        background: #dce6f5; padding: 5px 14px; border-radius: 6px;
+        font-weight: 700; color: #1a3a6e; font-size: 16px;
     }
 
     </style>
@@ -214,9 +203,9 @@ def _render_card_image(card_id: int, icon_map: dict[int, str], name_map: dict[in
         st.image(icon_url, use_container_width=True)
     else:
         st.markdown(
-            f"<div style='border:1px solid #333;border-radius:10px;padding:12px 6px;"
+            f"<div style='border:1px solid #c5d5ea;border-radius:10px;padding:12px 6px;"
             f"text-align:center;min-height:90px;display:flex;align-items:center;"
-            f"justify-content:center;font-size:12px;color:#bbb;background:#111827'>"
+            f"justify-content:center;font-size:12px;color:#6b7fa3;background:#ffffff'>"
             f"{card_name}</div>",
             unsafe_allow_html=True,
         )
@@ -317,7 +306,7 @@ def render_deck_card(
 def main():
     st.title("🏆 Popular Decks")
     st.markdown(
-        "<div style='margin-bottom:10px;color:#94a3b8;font-size:15px;'>"
+        "<div style='margin-bottom:10px;color:#5a7394;font-size:15px;'>"
         "Explore the most-played decks and compare their historical performance, "
         "archetype, and deck profile. Click any card for details."
         "</div>",
