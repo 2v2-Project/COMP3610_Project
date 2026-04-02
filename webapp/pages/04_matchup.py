@@ -1,66 +1,566 @@
 """
 Matchup Analysis Page
 =====================
-Detailed analysis of card and deck matchups.
+Input: player + opponent deck.
+Output: win probability, predicted winner, matchup stats.
 """
 
+from __future__ import annotations
+
+from pathlib import Path
+
+import pandas as pd
+import polars as pl
 import streamlit as st
+
+from utils.metadata import (
+    get_card_names,
+    get_card_types,
+    get_elixir_costs,
+    get_icon_urls,
+)
+from utils.deck_helpers import (
+    build_deck_key,
+    compute_avg_elixir,
+    compute_cycle_cost,
+    count_card_types,
+    detect_archetype,
+    enrich_deck_record,
+)
+
+st.set_page_config(page_title="Matchup Analysis", layout="wide")
 
 from utils.ui_helpers import inject_fonts
 
-st.set_page_config(page_title="Matchup Analysis", layout="wide")
 inject_fonts()
 
-st.title("⚔️ Matchup Analysis")
+# ── additional CSS ──────────────────────────────────────────────────
+st.markdown(
+    """
+    <style>
+    section.main > div { max-width: 1200px; margin: auto; }
+    div[data-testid="stMetric"] {
+        background-color: #ffffff;
+        border: 1px solid #d0dbe8;
+        padding: 10px 14px;
+        border-radius: 10px;
+        box-shadow: 0 1px 4px rgba(26,86,219,0.08);
+    }
+    div[data-testid="stMetric"] label { color: #6b7fa3 !important; font-size: 12px !important; }
+    div[data-testid="stMetric"] div[data-testid="stMetricValue"] { color: #1a3a6e !important; font-size: 18px !important; }
+    .section-label { color: #6b7fa3; font-size: 13px; font-weight: 700;
+        margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .slot-card { border: 1px dashed #b0c4de; border-radius: 10px; min-height: 78px;
+        background: #ffffff; display: flex; align-items: center; justify-content: center;
+        color: #6b7fa3; font-size: 13px; text-align: center; padding: 8px; }
+    .note-box { background: #ffffff; border: 1px solid #d0dbe8; border-radius: 10px;
+        padding: 14px 16px; color: #3b536e; font-size: 14px;
+        box-shadow: 0 1px 3px rgba(26,86,219,0.06); }
+    .conf-badge { display: inline-block; padding: 6px 14px; border-radius: 999px;
+        font-weight: 700; font-size: 13px; color: white; margin-top: 6px; }
+    .conf-high   { background: #16a34a; }
+    .conf-medium { background: #f59e0b; }
+    .conf-low    { background: #ef4444; }
+    .winner-banner { text-align: center; padding: 18px; border-radius: 12px;
+        font-size: 22px; font-weight: 700; margin: 12px 0; }
+    .winner-player { background: #dcfce7; color: #166534; border: 2px solid #16a34a; }
+    .winner-opponent { background: #fee2e2; color: #991b1b; border: 2px solid #ef4444; }
+    .winner-draw { background: #fef9c3; color: #854d0e; border: 2px solid #f59e0b; }
+    .elixir-badge { display: inline-flex; align-items: center; gap: 2px;
+        background: #e8f0fe; border-radius: 10px; padding: 1px 6px;
+        font-size: 11px; font-weight: 700; color: #1a3a6e; }
+    .elixir-badge img { width: 13px; height: 13px; }
+    .deck-card-wrap { position: relative; display: inline-block; width: 100%; }
+    .deck-card-wrap img { border-radius: 10px; width: 100%; }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
-st.write("Analyze how different cards and decks perform against each other.")
+# ── Data paths ──────────────────────────────────────────────────────
+DATA_PATHS = [
+    Path("data/processed/clash_royale_clean.parquet"),
+    Path("data/processed/final_ml_dataset.parquet"),
+]
+PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
+OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]
+PLAYER_CROWNS_COL = "player1.crowns"
+OPPONENT_CROWNS_COL = "player2.crowns"
 
-st.divider()
+SIMILAR_DECK_OVERLAP = 6
+TOP_SIMILAR = 25
+MIN_MATCHES = 20
 
-st.subheader("Card Matchups")
 
-col_card1, col_card2 = st.columns(2)
+# ── Helpers ─────────────────────────────────────────────────────────
+def load_card_assets():
+    name_map = get_card_names(force_refresh=False)
+    type_map = get_card_types(force_refresh=False)
+    elixir_map = get_elixir_costs(force_refresh=False)
+    icon_map = get_icon_urls(force_refresh=False)
 
-with col_card1:
-    card1 = st.selectbox("Select Card 1:", ["Hog Rider", "Golem", "X-Bow", "Balloon", "Select a card..."])
+    card_df = pd.DataFrame({"card_id": list(name_map.keys()),
+                            "name": [name_map[c] for c in name_map]})
+    banned = ["super ", "santa ", "terry", "party", "evolved ", "evolution",
+              "mirror mode", "placeholder"]
+    mask = ~card_df["name"].str.lower().apply(lambda x: any(k in x for k in banned))
+    card_df = card_df[mask].sort_values("name").reset_index(drop=True)
+    valid = set(card_df["card_id"])
+    name_map = {k: v for k, v in name_map.items() if k in valid}
+    type_map = {k: v for k, v in type_map.items() if k in valid}
+    elixir_map = {k: v for k, v in elixir_map.items() if k in valid}
+    icon_map = {k: v for k, v in icon_map.items() if k in valid}
+    return card_df, name_map, type_map, elixir_map, icon_map
 
-with col_card2:
-    card2 = st.selectbox("Select Card 2:", ["Ice Spirit", "Goblin Barrel", "Miner", "Sparky", "Select a card..."])
 
-if st.button("Calculate Matchup"):
-    st.write(f"Placeholder: Detailed matchup analysis between {card1} and {card2}")
-    st.info("Shows head-to-head statistics, effective counters, and synergies.")
+@st.cache_data(show_spinner=True)
+def load_match_data() -> pl.DataFrame:
+    for p in DATA_PATHS:
+        if p.exists():
+            df = pl.read_parquet(p)
+            needed = set(PLAYER_CARD_COLS + OPPONENT_CARD_COLS +
+                         [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL])
+            if needed.issubset(set(df.columns)):
+                return df.select(list(needed))
+    raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")
 
-st.divider()
 
-st.subheader("Deck Matchup Matrix")
+@st.cache_data(show_spinner=True)
+def build_deck_lookup(min_matches: int) -> pd.DataFrame:
+    """Build grouped deck stats from player-side data."""
+    df = load_match_data().to_pandas()
+    df["deck_key"] = df[PLAYER_CARD_COLS].apply(
+        lambda r: build_deck_key([int(x) for x in r]), axis=1)
+    df["win"] = (df[PLAYER_CROWNS_COL] > df[OPPONENT_CROWNS_COL]).astype(int)
+    grp = df.groupby("deck_key", as_index=False).agg(
+        matches_played=("win", "count"), wins=("win", "sum"))
+    grp = grp[grp["matches_played"] >= min_matches].copy()
+    _, nm, tm, em, _ = load_card_assets()
+    records = [enrich_deck_record(r["deck_key"], int(r["matches_played"]),
+               int(r["wins"]), nm, em, tm) for _, r in grp.iterrows()]
+    return pd.DataFrame(records).sort_values(
+        ["matches_played", "win_rate"], ascending=[False, False]).reset_index(drop=True)
 
-col_matrix1, col_matrix2 = st.columns(2)
 
-with col_matrix1:
-    archetype1 = st.selectbox("Player 1 Archetype:", 
-        ["Beatdown", "Cycle", "Siege", "Control", "Bait", "Bridge Spam", "Graveyard", "Miner Control"])
+@st.cache_data(show_spinner=True)
+def compute_head_to_head(player_key: str, opponent_key: str) -> dict | None:
+    """Look up exact head-to-head stats for two deck keys."""
+    df = load_match_data().to_pandas()
+    df["p_key"] = df[PLAYER_CARD_COLS].apply(
+        lambda r: build_deck_key([int(x) for x in r]), axis=1)
+    df["o_key"] = df[OPPONENT_CARD_COLS].apply(
+        lambda r: build_deck_key([int(x) for x in r]), axis=1)
 
-with col_matrix2:
-    archetype2 = st.selectbox("Player 2 Archetype:", 
-        ["Beatdown", "Cycle", "Siege", "Control", "Bait", "Bridge Spam", "Graveyard", "Miner Control"])
+    # matches where player deck = player_key AND opponent deck = opponent_key
+    fwd = df[(df["p_key"] == player_key) & (df["o_key"] == opponent_key)].copy()
+    fwd["p_win"] = (fwd[PLAYER_CROWNS_COL] > fwd[OPPONENT_CROWNS_COL]).astype(int)
 
-st.write(f"Placeholder: Heatmap showing {archetype1} vs {archetype2} matchup statistics")
-st.success("Based on 1,000+ historical matches")
+    # also check reverse (opponent as player1, player as player2)
+    rev = df[(df["p_key"] == opponent_key) & (df["o_key"] == player_key)].copy()
+    rev["p_win"] = (rev[PLAYER_CROWNS_COL] <= rev[OPPONENT_CROWNS_COL]).astype(int)
 
-st.divider()
+    combined = pd.concat([fwd[["p_win"]], rev[["p_win"]]], ignore_index=True)
+    if combined.empty:
+        return None
 
-st.subheader("Counter Analysis")
+    total = len(combined)
+    wins = int(combined["p_win"].sum())
+    losses = total - wins
+    return {
+        "total_matches": total,
+        "player_wins": wins,
+        "opponent_wins": losses,
+        "player_win_rate": round(wins / total * 100, 2),
+    }
 
-selected_card = st.selectbox("Choose a card to find counters:", 
-    ["Hog Rider", "Golem", "X-Bow", "Balloon", "Mega Knight", "Sparky"])
 
-col_counter1, col_counter2 = st.columns(2)
+def estimate_deck_win_rate(cards: list[int], decks_df: pd.DataFrame) -> dict:
+    """Estimate win-rate for a single deck from exact or similar historical decks."""
+    dk = build_deck_key(cards)
+    exact = decks_df[decks_df["deck_key"] == dk]
+    if not exact.empty:
+        row = exact.iloc[0]
+        return {"win_rate": float(row["win_rate"]),
+                "matches": int(row["matches_played"]),
+                "source": "exact", "confidence": _conf(int(row["matches_played"]))}
 
-with col_counter1:
-    st.write(f"Best Counters to {selected_card}:")
-    st.info("Placeholder: List of cards with highest win rate against selected card")
+    target = set(cards)
+    rows = []
+    for _, r in decks_df.iterrows():
+        overlap = len(target & set(int(x) for x in r["card_ids"]))
+        if overlap >= SIMILAR_DECK_OVERLAP:
+            rows.append({"sim": overlap / 8.0, "mp": int(r["matches_played"]),
+                         "wr": float(r["win_rate"])})
+    if not rows:
+        return {"win_rate": 50.0, "matches": 0, "source": "fallback", "confidence": "Low"}
 
-with col_counter2:
-    st.write(f"Supports for {selected_card}:")
-    st.info("Placeholder: List of cards that synergize well with selected card")
+    sdf = pd.DataFrame(rows).sort_values(["sim", "mp"], ascending=False).head(TOP_SIMILAR)
+    w = sdf["sim"] * sdf["mp"]
+    wr = float((sdf["wr"] * w).sum() / w.sum())
+    tm = int(sdf["mp"].sum())
+    return {"win_rate": round(wr, 2), "matches": tm,
+            "source": f"~{len(sdf)} similar decks", "confidence": _conf(tm)}
+
+
+def _conf(n: int) -> str:
+    if n >= 1000: return "High"
+    if n >= 200:  return "Medium"
+    return "Low"
+
+
+def render_card_image(card_id: int, icon_map: dict, name_map: dict) -> None:
+    url = icon_map.get(int(card_id))
+    name = name_map.get(int(card_id), str(card_id))
+    if url and isinstance(url, str) and url.strip():
+        st.image(url, use_container_width=True)
+    else:
+        st.markdown(
+            f"<div style='border:1px solid #c5d5ea;border-radius:10px;padding:8px;"
+            f"text-align:center;min-height:90px;display:flex;align-items:center;"
+            f"justify-content:center;font-size:12px;color:#6b7fa3;"
+            f"background:#fff;'>{name}</div>", unsafe_allow_html=True)
+
+
+def render_empty_slot(n: int):
+    st.markdown(f"<div class='slot-card'>Slot {n}</div>", unsafe_allow_html=True)
+
+
+def render_confidence(conf: str):
+    cls = {"High": "conf-high", "Medium": "conf-medium", "Low": "conf-low"}.get(conf, "conf-medium")
+    st.markdown(f"<span class='conf-badge {cls}'>{conf} Confidence</span>",
+                unsafe_allow_html=True)
+
+
+# ── Deck builder state ─────────────────────────────────────────────
+def _init_state():
+    if "mu_player" not in st.session_state:
+        st.session_state.mu_player = [None] * 8
+    if "mu_opponent" not in st.session_state:
+        st.session_state.mu_opponent = [None] * 8
+
+
+def _add(side: str, cid: int):
+    slots = st.session_state[side]
+    if cid in slots:
+        return
+    for i in range(8):
+        if slots[i] is None:
+            slots[i] = int(cid)
+            return
+
+
+def _remove(side: str, idx: int):
+    st.session_state[side][idx] = None
+
+
+def _clear(side: str):
+    st.session_state[side] = [None] * 8
+
+
+def _filled(side: str) -> list[int]:
+    return [c for c in st.session_state[side] if c is not None]
+
+
+# ── Deck builder UI ────────────────────────────────────────────────
+def render_deck_builder(label: str, side: str, card_df: pd.DataFrame,
+                        name_map: dict, type_map: dict, elixir_map: dict,
+                        icon_map: dict):
+    st.markdown(f"<div class='section-label'>{label}</div>", unsafe_allow_html=True)
+    filled = _filled(side)
+
+    # show 2 rows × 4 slots
+    for row_start in (0, 4):
+        cols = st.columns(4, gap="small")
+        for i in range(4):
+            idx = row_start + i
+            with cols[i]:
+                cid = st.session_state[side][idx]
+                if cid is None:
+                    render_empty_slot(idx + 1)
+                else:
+                    url = icon_map.get(int(cid), "")
+                    if url:
+                        st.markdown(f"<div class='deck-card-wrap'><img src='{url}'/></div>",
+                                    unsafe_allow_html=True)
+                    else:
+                        render_card_image(cid, icon_map, name_map)
+                    if st.button("✕", key=f"rm_{side}_{idx}", use_container_width=True):
+                        _remove(side, idx)
+                        st.rerun()
+
+    # live stats row
+    if filled:
+        avg_e = compute_avg_elixir(filled, elixir_map)
+        cyc = compute_cycle_cost(filled, elixir_map) if len(filled) >= 4 else 0
+        tc = count_card_types(filled, type_map)
+        c1, c2, c3, c4, c5 = st.columns(5)
+        c1.metric("Avg Elixir", f"{avg_e:.1f}")
+        c2.metric("Cycle", cyc if cyc else "—")
+        c3.metric("Troops", tc["troop_count"])
+        c4.metric("Spells", tc["spell_count"])
+        c5.metric("Buildings", tc["building_count"])
+
+    st.caption(f"{len(filled)}/8 cards selected")
+
+    if st.button("Clear", key=f"clear_{side}", use_container_width=True):
+        _clear(side)
+        st.rerun()
+
+    # card chooser (collapsed when full)
+    if len(filled) < 8:
+        search = st.text_input("Search cards", key=f"search_{side}",
+                               placeholder="Type a card name…")
+        avail = card_df.copy()
+        if search.strip():
+            avail = avail[avail["name"].str.contains(search.strip(), case=False, na=False)]
+        avail = avail[~avail["card_id"].isin(set(filled))].reset_index(drop=True)
+        avail["type"] = avail["card_id"].map(type_map).fillna("unknown")
+        avail["elixir"] = avail["card_id"].map(elixir_map).fillna(0).astype(int)
+        avail = avail.sort_values(["elixir", "name"]).reset_index(drop=True)
+
+        ELIXIR_ICON = "https://cdn.royaleapi.com/static/img/ui/elixir.png"
+        for cat_label, cat_key in [("Troops", "troop"), ("Spells", "spell"),
+                                    ("Buildings", "building")]:
+            section = avail[avail["type"] == cat_key].reset_index(drop=True)
+            if section.empty:
+                continue
+            st.markdown(
+                f"<div style='background:#dce6f5;padding:6px 14px;border-radius:6px;"
+                f"color:#1a3a6e;font-weight:700;font-size:14px;margin:12px 0 8px;'>"
+                f"{cat_label}</div>", unsafe_allow_html=True)
+            per_row = 6
+            for start in range(0, len(section), per_row):
+                chunk = section.iloc[start:start + per_row]
+                cols = st.columns(per_row, gap="small")
+                for ci, (_, row) in enumerate(chunk.iterrows()):
+                    with cols[ci]:
+                        cid = int(row["card_id"])
+                        url = icon_map.get(cid)
+                        if url:
+                            st.image(url, use_container_width=True)
+                        ec = elixir_map.get(cid, "")
+                        if ec:
+                            st.markdown(
+                                f"<div style='text-align:center'>"
+                                f"<span class='elixir-badge'>"
+                                f"<img src='{ELIXIR_ICON}'/>{ec}</span></div>",
+                                unsafe_allow_html=True)
+                        if st.button("Add", key=f"add_{side}_{cid}",
+                                     use_container_width=True):
+                            if len(filled) < 8:
+                                _add(side, cid)
+                                st.rerun()
+
+
+# ── Main page ───────────────────────────────────────────────────────
+def main():
+    st.title("⚔️ Matchup Analysis")
+    st.markdown(
+        "<div style='margin-bottom:10px;color:#5a7394;font-size:15px;'>"
+        "Build a <strong>Player</strong> deck and an <strong>Opponent</strong> deck, "
+        "then click <em>Analyze Matchup</em> to see win probability, predicted winner, "
+        "and head-to-head statistics."
+        "</div>",
+        unsafe_allow_html=True,
+    )
+
+    _init_state()
+    card_df, name_map, type_map, elixir_map, icon_map = load_card_assets()
+    decks_df = build_deck_lookup(MIN_MATCHES)
+
+    # ── Two side-by-side deck builders ──────────────────────────────
+    left_col, right_col = st.columns(2, gap="large")
+    with left_col:
+        render_deck_builder("Player Deck", "mu_player", card_df,
+                            name_map, type_map, elixir_map, icon_map)
+    with right_col:
+        render_deck_builder("Opponent Deck", "mu_opponent", card_df,
+                            name_map, type_map, elixir_map, icon_map)
+
+    st.divider()
+
+    p_cards = _filled("mu_player")
+    o_cards = _filled("mu_opponent")
+    ready = len(p_cards) == 8 and len(o_cards) == 8
+
+    analyze = st.button("⚔️ Analyze Matchup", type="primary",
+                        use_container_width=True, disabled=not ready)
+    if not ready:
+        st.info("Select exactly 8 cards for **both** the Player and Opponent decks.")
+        return
+    if not analyze:
+        return
+
+    # ── Compute stats ───────────────────────────────────────────────
+    p_key = build_deck_key(p_cards)
+    o_key = build_deck_key(o_cards)
+
+    p_est = estimate_deck_win_rate(p_cards, decks_df)
+    o_est = estimate_deck_win_rate(o_cards, decks_df)
+
+    h2h = compute_head_to_head(p_key, o_key)
+
+    # win probability: blend head-to-head (if available) with individual rates
+    if h2h and h2h["total_matches"] >= 5:
+        h2h_weight = min(h2h["total_matches"] / 100, 0.7)
+        individual_prob = p_est["win_rate"] / (p_est["win_rate"] + o_est["win_rate"]) * 100 \
+            if (p_est["win_rate"] + o_est["win_rate"]) > 0 else 50.0
+        player_win_prob = round(
+            h2h_weight * h2h["player_win_rate"] + (1 - h2h_weight) * individual_prob, 2)
+    else:
+        total = p_est["win_rate"] + o_est["win_rate"]
+        player_win_prob = round(p_est["win_rate"] / total * 100, 2) if total > 0 else 50.0
+
+    opponent_win_prob = round(100 - player_win_prob, 2)
+
+    # confidence
+    combined_matches = p_est["matches"] + o_est["matches"]
+    if h2h:
+        combined_matches += h2h["total_matches"]
+    confidence = _conf(combined_matches)
+
+    # archetypes
+    p_arch = detect_archetype(p_cards, name_map, elixir_map)
+    o_arch = detect_archetype(o_cards, name_map, elixir_map)
+
+    # ── Predicted winner banner ─────────────────────────────────────
+    if abs(player_win_prob - 50) < 1.0:
+        banner_cls = "winner-draw"
+        banner_text = "🤝 Even Matchup — Too Close to Call"
+    elif player_win_prob > 50:
+        banner_cls = "winner-player"
+        banner_text = f"🏆 Predicted Winner: Player ({player_win_prob:.1f}%)"
+    else:
+        banner_cls = "winner-opponent"
+        banner_text = f"🏆 Predicted Winner: Opponent ({opponent_win_prob:.1f}%)"
+
+    st.markdown(f"<div class='winner-banner {banner_cls}'>{banner_text}</div>",
+                unsafe_allow_html=True)
+
+    # ── Win probability metrics ─────────────────────────────────────
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Player Win Prob", f"{player_win_prob:.1f}%")
+    m2.metric("Opponent Win Prob", f"{opponent_win_prob:.1f}%")
+    m3.metric("Prediction Confidence", confidence)
+
+    render_confidence(confidence)
+    st.caption("Confidence reflects the amount of historical data supporting this matchup estimate.")
+
+    st.divider()
+
+    # ── Side-by-side deck comparison ────────────────────────────────
+    st.subheader("Deck Comparison")
+
+    left, right = st.columns(2, gap="large")
+
+    for col, cards, est, arch, label in [
+        (left, p_cards, p_est, p_arch, "Player"),
+        (right, o_cards, o_est, o_arch, "Opponent"),
+    ]:
+        with col:
+            st.markdown(f"<div class='section-label'>{label} Deck</div>",
+                        unsafe_allow_html=True)
+            for row_start in (0, 4):
+                img_cols = st.columns(4, gap="small")
+                for i in range(4):
+                    with img_cols[i]:
+                        render_card_image(cards[row_start + i], icon_map, name_map)
+            st.caption(" • ".join(name_map.get(int(c), str(c)) for c in cards))
+
+            avg_e = compute_avg_elixir(cards, elixir_map)
+            cyc = compute_cycle_cost(cards, elixir_map)
+            tc = count_card_types(cards, type_map)
+
+            s1, s2, s3 = st.columns(3)
+            s1.metric("Archetype", arch)
+            s2.metric("Avg Elixir", f"{avg_e:.2f}")
+            s3.metric("Cycle Cost", cyc)
+
+            s4, s5, s6, s7 = st.columns(4)
+            s4.metric("Troops", tc["troop_count"])
+            s5.metric("Spells", tc["spell_count"])
+            s6.metric("Buildings", tc["building_count"])
+            s7.metric("Meta Win Rate", f"{est['win_rate']:.1f}%")
+
+            st.caption(f"Source: {est['source']} ({est['matches']:,} matches)")
+
+    st.divider()
+
+    # ── Matchup stats ───────────────────────────────────────────────
+    st.subheader("Matchup Statistics")
+
+    if h2h and h2h["total_matches"] > 0:
+        st.success(f"Found **{h2h['total_matches']:,}** historical head-to-head matches "
+                   f"between these exact decks.")
+        h1, h2_, h3 = st.columns(3)
+        h1.metric("Player Wins", h2h["player_wins"])
+        h2_.metric("Opponent Wins", h2h["opponent_wins"])
+        h3.metric("H2H Player Win Rate", f"{h2h['player_win_rate']:.1f}%")
+    else:
+        st.info("No direct head-to-head matches found between these exact decks. "
+                "The prediction is based on each deck's individual historical performance "
+                "against the overall meta.")
+
+    # ── Advantage breakdown ─────────────────────────────────────────
+    st.subheader("Advantage Breakdown")
+
+    p_avg = compute_avg_elixir(p_cards, elixir_map)
+    o_avg = compute_avg_elixir(o_cards, elixir_map)
+    p_cyc = compute_cycle_cost(p_cards, elixir_map)
+    o_cyc = compute_cycle_cost(o_cards, elixir_map)
+    p_tc = count_card_types(p_cards, type_map)
+    o_tc = count_card_types(o_cards, type_map)
+    shared = set(p_cards) & set(o_cards)
+
+    advantages: list[str] = []
+
+    if p_avg < o_avg - 0.3:
+        advantages.append("✅ **Player** has a lighter deck — faster cycle and chip pressure.")
+    elif o_avg < p_avg - 0.3:
+        advantages.append("✅ **Opponent** has a lighter deck — faster cycle and chip pressure.")
+
+    if p_cyc < o_cyc - 1:
+        advantages.append("✅ **Player** cycles cheaper (4-card cycle cost is lower).")
+    elif o_cyc < p_cyc - 1:
+        advantages.append("✅ **Opponent** cycles cheaper (4-card cycle cost is lower).")
+
+    if p_tc["building_count"] > o_tc["building_count"]:
+        advantages.append("✅ **Player** has more buildings — better defensive structure.")
+    elif o_tc["building_count"] > p_tc["building_count"]:
+        advantages.append("✅ **Opponent** has more buildings — better defensive structure.")
+
+    if p_tc["spell_count"] > o_tc["spell_count"]:
+        advantages.append("✅ **Player** has more spells — stronger spell cycle and removal.")
+    elif o_tc["spell_count"] > p_tc["spell_count"]:
+        advantages.append("✅ **Opponent** has more spells — stronger spell cycle and removal.")
+
+    if shared:
+        shared_names = [name_map.get(int(c), str(c)) for c in shared]
+        advantages.append(f"🔄 **Shared cards** ({len(shared)}): {', '.join(shared_names)}")
+
+    if not advantages:
+        advantages.append("These decks are very evenly matched across all dimensions.")
+
+    for line in advantages:
+        st.markdown(line)
+
+    st.divider()
+
+    # ── Explanation ─────────────────────────────────────────────────
+    st.subheader("How This Prediction Works")
+    st.markdown(
+        """
+        1. **Individual Meta Win Rates** — Each deck's historical win rate is computed from 
+           exact or similar decks in the dataset (~12.4M matches).
+        2. **Head-to-Head Records** — If these exact two decks have faced each other before, 
+           the direct record is blended into the prediction.
+        3. **Win Probability** — The final probability is a weighted blend of head-to-head 
+           performance and relative meta strength.
+        4. **Advantage Breakdown** — Elixir cost, cycle speed, and card-type composition 
+           are compared to highlight structural advantages.
+        """
+    )
+
+
+if __name__ == "__main__":
+    main()
