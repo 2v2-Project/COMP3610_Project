@@ -16,6 +16,13 @@ from utils.deck_helpers import (
     build_deck_key,
     enrich_deck_record,
 )
+from utils.uncertainty import (
+    combine_confidence_signals,
+    confidence_from_match_count,
+    confidence_from_similar_decks,
+    get_model_predictions_safe,
+)
+from utils.metadata import get_card_metadata
 
 st.set_page_config(page_title="Win Predictor", layout="wide")
 
@@ -367,19 +374,11 @@ def render_empty_slot(slot_num: int):
 
 
 def get_confidence_from_matches(matches: int) -> str:
-    if matches >= 1000:
-        return "High"
-    if matches >= 200:
-        return "Medium"
-    return "Low"
+    return confidence_from_match_count(matches_played=matches)
 
 
 def get_confidence_from_similar_decks(similar_count: int, total_matches: int) -> str:
-    if similar_count >= 8 and total_matches >= 3000:
-        return "High"
-    if similar_count >= 4 and total_matches >= 1000:
-        return "Medium"
-    return "Low"
+    return confidence_from_similar_decks(similar_count=similar_count, total_matches=total_matches)
 
 
 def estimate_from_similar_decks(selected_cards: list[int], decks_df: pd.DataFrame) -> dict | None:
@@ -756,7 +755,7 @@ def main():
 
     if exact_match is not None:
         estimated_win_rate = float(exact_match["win_rate"])
-        confidence = get_confidence_from_matches(int(exact_match["matches_played"]))
+        historical_confidence = get_confidence_from_matches(int(exact_match["matches_played"]))
         historical_matches = int(exact_match["matches_played"])
         source_label = "Exact historical deck match"
         display_archetype = exact_match["archetype"]
@@ -765,16 +764,40 @@ def main():
 
         if similar_result is not None:
             estimated_win_rate = float(similar_result["estimated_win_rate"])
-            confidence = similar_result["confidence"]
+            historical_confidence = similar_result["confidence"]
             historical_matches = int(similar_result["historical_matches"])
             source_label = f"Estimated from {similar_result['similar_deck_count']} similar decks"
             display_archetype = archetype if archetype != "Unknown" else similar_result["archetype_guess"]
         else:
             estimated_win_rate = 50.0
-            confidence = "Low"
+            historical_confidence = confidence_from_match_count(matches_played=0)
             historical_matches = 0
             source_label = "Fallback estimate"
             display_archetype = archetype
+
+    # Hybrid confidence: model-based signal (with distance-from-0.5 fallback)
+    # combined with historical support confidence.
+    try:
+        metadata_df = get_card_metadata(force_refresh=False)
+        model_probs = get_model_predictions_safe(selected_cards, metadata_df)
+        confidence_result = combine_confidence_signals(
+            probability=estimated_win_rate / 100.0,
+            historical_confidence_label=historical_confidence,
+            model_probabilities=model_probs,
+            model_weight=0.6,
+            historical_weight=0.4,
+        )
+        confidence = confidence_result.label
+    except Exception:
+        # Fallback: hybrid confidence without actual model predictions
+        confidence_result = combine_confidence_signals(
+            probability=estimated_win_rate / 100.0,
+            historical_confidence_label=historical_confidence,
+            model_probabilities=None,
+            model_weight=0.6,
+            historical_weight=0.4,
+        )
+        confidence = confidence_result.label
 
     metric1, metric2, metric3, metric4 = st.columns(4)
     metric1.metric("Estimated Meta Win Rate", f"{estimated_win_rate:.2f}%")
@@ -783,7 +806,10 @@ def main():
     metric4.metric("Cycle Cost", cycle_cost)
 
     render_confidence_badge(confidence)
-    st.caption("Confidence reflects how much historical support exists for this estimate.")
+    st.caption(
+        "Confidence combines model signal (distance from 50% when model disagreement is unavailable) "
+        "with historical support from exact/similar decks."
+    )
 
     st.divider()
 
