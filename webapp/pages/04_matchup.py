@@ -27,6 +27,12 @@ from utils.deck_helpers import (
     detect_archetype,
     enrich_deck_record,
 )
+from utils.uncertainty import (
+    confidence_from_match_count,
+    combine_confidence_signals,
+    get_model_predictions_safe,
+)
+from utils.metadata import get_card_metadata
 
 st.set_page_config(page_title="Matchup Analysis", layout="wide")
 
@@ -182,7 +188,7 @@ def estimate_deck_win_rate(cards: list[int], decks_df: pd.DataFrame) -> dict:
         row = exact.iloc[0]
         return {"win_rate": float(row["win_rate"]),
                 "matches": int(row["matches_played"]),
-                "source": "exact", "confidence": _conf(int(row["matches_played"]))}
+                "source": "exact", "confidence": confidence_from_match_count(int(row["matches_played"]))}
 
     target = set(cards)
     rows = []
@@ -192,20 +198,22 @@ def estimate_deck_win_rate(cards: list[int], decks_df: pd.DataFrame) -> dict:
             rows.append({"sim": overlap / 8.0, "mp": int(r["matches_played"]),
                          "wr": float(r["win_rate"])})
     if not rows:
-        return {"win_rate": 50.0, "matches": 0, "source": "fallback", "confidence": "Low"}
+        return {
+            "win_rate": 50.0,
+            "matches": 0,
+            "source": "fallback",
+            "confidence": confidence_from_match_count(matches_played=0),
+        }
 
     sdf = pd.DataFrame(rows).sort_values(["sim", "mp"], ascending=False).head(TOP_SIMILAR)
     w = sdf["sim"] * sdf["mp"]
     wr = float((sdf["wr"] * w).sum() / w.sum())
     tm = int(sdf["mp"].sum())
     return {"win_rate": round(wr, 2), "matches": tm,
-            "source": f"~{len(sdf)} similar decks", "confidence": _conf(tm)}
+            "source": f"~{len(sdf)} similar decks", "confidence": confidence_from_match_count(tm)}
 
 
-def _conf(n: int) -> str:
-    if n >= 1000: return "High"
-    if n >= 200:  return "Medium"
-    return "Low"
+
 
 
 def render_card_image(card_id: int, icon_map: dict, name_map: dict) -> None:
@@ -413,11 +421,27 @@ def main():
 
     opponent_win_prob = round(100 - player_win_prob, 2)
 
-    # confidence
+    # Historical confidence
     combined_matches = p_est["matches"] + o_est["matches"]
     if h2h:
         combined_matches += h2h["total_matches"]
-    confidence = _conf(combined_matches)
+    historical_conf = confidence_from_match_count(combined_matches)
+
+    # Model-based confidence (hybrid)
+    try:
+        metadata_df = get_card_metadata(force_refresh=False)
+        model_probs = get_model_predictions_safe(p_cards, metadata_df)
+        conf_result = combine_confidence_signals(
+            probability=player_win_prob / 100.0,
+            historical_confidence_label=historical_conf,
+            model_probabilities=model_probs,
+            model_weight=0.6,
+            historical_weight=0.4,
+        )
+        confidence = conf_result.label
+    except Exception:
+        # Fallback to historical confidence only if model loading fails
+        confidence = historical_conf
 
     # archetypes
     p_arch = detect_archetype(p_cards, name_map, elixir_map)

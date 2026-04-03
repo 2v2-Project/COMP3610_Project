@@ -5,6 +5,8 @@ from typing import Iterable
 
 import pandas as pd
 
+from .uncertainty import confidence_from_match_count
+
 
 def build_deck_key(card_ids: list[int]) -> str:
     """Create a canonical deck key so the same deck always groups together."""
@@ -95,11 +97,11 @@ def detect_archetype(
 
 
 def get_confidence_label_from_matches(matches_played: int) -> str:
-    if matches_played >= 500:
-        return "High"
-    if matches_played >= 100:
-        return "Medium"
-    return "Low"
+    return confidence_from_match_count(
+        matches_played=matches_played,
+        high_threshold=500,
+        medium_threshold=100,
+    )
 
 
 def enrich_deck_record(
