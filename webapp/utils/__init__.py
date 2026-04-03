@@ -56,6 +56,8 @@ from .recommendation import (
     recommend_best_decks,
 )
 
+from .explanation_engine import build_prediction_explanations
+
 __all__ = [
     # data_loader
     "load_card_metadata",
@@ -96,4 +98,6 @@ __all__ = [
     # recommendation
     "rank_candidate_decks",
     "recommend_best_decks",
+    #explanation_engine
+    "build_prediction_explanations"
 ]
