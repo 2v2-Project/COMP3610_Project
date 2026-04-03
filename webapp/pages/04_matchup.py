@@ -131,15 +131,25 @@ def load_match_data() -> pl.DataFrame:
     raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")
 
 
+@st.cache_data(show_spinner="Building deck key index …")
+def _keyed_match_data() -> pd.DataFrame:
+    """Compute deck keys ONCE and cache. Reused by build_deck_lookup and h2h."""
+    df = load_match_data().to_pandas()
+    df["p_key"] = df[PLAYER_CARD_COLS].apply(
+        lambda r: build_deck_key([int(x) for x in r]), axis=1)
+    df["o_key"] = df[OPPONENT_CARD_COLS].apply(
+        lambda r: build_deck_key([int(x) for x in r]), axis=1)
+    df["p_win"] = (df[PLAYER_CROWNS_COL] > df[OPPONENT_CROWNS_COL]).astype(int)
+    return df
+
+
 @st.cache_data(show_spinner=True)
 def build_deck_lookup(min_matches: int) -> pd.DataFrame:
     """Build grouped deck stats from player-side data."""
-    df = load_match_data().to_pandas()
-    df["deck_key"] = df[PLAYER_CARD_COLS].apply(
-        lambda r: build_deck_key([int(x) for x in r]), axis=1)
-    df["win"] = (df[PLAYER_CROWNS_COL] > df[OPPONENT_CROWNS_COL]).astype(int)
-    grp = df.groupby("deck_key", as_index=False).agg(
-        matches_played=("win", "count"), wins=("win", "sum"))
+    df = _keyed_match_data()
+    grp = df.groupby("p_key", as_index=False).agg(
+        matches_played=("p_win", "count"), wins=("p_win", "sum"))
+    grp = grp.rename(columns={"p_key": "deck_key"})
     grp = grp[grp["matches_played"] >= min_matches].copy()
     _, nm, tm, em, _ = load_card_assets()
     records = [enrich_deck_record(r["deck_key"], int(r["matches_played"]),
@@ -150,27 +160,23 @@ def build_deck_lookup(min_matches: int) -> pd.DataFrame:
 
 @st.cache_data(show_spinner=True)
 def compute_head_to_head(player_key: str, opponent_key: str) -> dict | None:
-    """Look up exact head-to-head stats for two deck keys."""
-    df = load_match_data().to_pandas()
-    df["p_key"] = df[PLAYER_CARD_COLS].apply(
-        lambda r: build_deck_key([int(x) for x in r]), axis=1)
-    df["o_key"] = df[OPPONENT_CARD_COLS].apply(
-        lambda r: build_deck_key([int(x) for x in r]), axis=1)
+    """Look up exact head-to-head stats for two deck keys (uses pre-computed keys)."""
+    df = _keyed_match_data()
 
     # matches where player deck = player_key AND opponent deck = opponent_key
-    fwd = df[(df["p_key"] == player_key) & (df["o_key"] == opponent_key)].copy()
-    fwd["p_win"] = (fwd[PLAYER_CROWNS_COL] > fwd[OPPONENT_CROWNS_COL]).astype(int)
+    fwd = df[(df["p_key"] == player_key) & (df["o_key"] == opponent_key)]
 
     # also check reverse (opponent as player1, player as player2)
-    rev = df[(df["p_key"] == opponent_key) & (df["o_key"] == player_key)].copy()
-    rev["p_win"] = (rev[PLAYER_CROWNS_COL] <= rev[OPPONENT_CROWNS_COL]).astype(int)
+    rev = df[(df["p_key"] == opponent_key) & (df["o_key"] == player_key)]
 
-    combined = pd.concat([fwd[["p_win"]], rev[["p_win"]]], ignore_index=True)
-    if combined.empty:
+    fwd_wins = int(fwd["p_win"].sum())
+    rev_wins = int((1 - rev["p_win"]).sum())  # reversed perspective
+    total = len(fwd) + len(rev)
+
+    if total == 0:
         return None
 
-    total = len(combined)
-    wins = int(combined["p_win"].sum())
+    wins = fwd_wins + rev_wins
     losses = total - wins
     return {
         "total_matches": total,

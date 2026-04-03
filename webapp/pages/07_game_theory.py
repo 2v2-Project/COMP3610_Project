@@ -143,6 +143,11 @@ ARCHETYPE_PHILOSOPHY: dict[str, str] = {
 
 # ── Data loading ────────────────────────────────────────────────────
 
+# 500K sample is statistically robust for archetype-level win rates
+# (each of ~10 archetypes gets ~50K rows on average) while being ~25×
+# faster than processing the full 12.4M-row dataset.
+SAMPLE_SIZE = 500_000
+
 @st.cache_data(show_spinner="Loading match data …")
 def load_match_data() -> pd.DataFrame:
     for p in DATA_PATHS:
@@ -151,7 +156,11 @@ def load_match_data() -> pd.DataFrame:
             needed = set(PLAYER_CARD_COLS + OPPONENT_CARD_COLS +
                          [PLAYER_CROWNS, OPPONENT_CROWNS])
             if needed.issubset(set(df.columns)):
-                return df.select(list(needed)).to_pandas()
+                selected = df.select(list(needed))
+                # Stratified random sample for performance
+                if selected.height > SAMPLE_SIZE:
+                    selected = selected.sample(n=SAMPLE_SIZE, seed=42)
+                return selected.to_pandas()
     raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")
 
 
@@ -510,10 +519,11 @@ def main():
     # ── 7. How this works section ───────────────────────────────────
     st.subheader("📖 How This Analysis Works")
     st.markdown(
-        """
-        1. **Archetype Classification** — Every deck in the dataset (~12.4 M matches) is 
-           classified into an archetype using rule-based detection (win-condition cards + 
-           average elixir cost).
+        f"""
+        1. **Archetype Classification** — A random sample of {SAMPLE_SIZE:,} matches
+           (from ~12.4 M total) is classified into archetypes using rule-based detection
+           (win-condition cards + average elixir cost). The sample is large enough for
+           statistically stable archetype-level estimates.
 
         2. **Payoff Matrix** — For each (player archetype, opponent archetype) pair, the 
            player's historical win-rate is computed. This is the *payoff* in game-theory 

@@ -142,12 +142,68 @@ These results were consistent with earlier experiments, indicating stable model 
 
 ## Saved Artifacts
 
-The final trained model and required metadata were saved for deployment:
+The final trained models and required metadata were saved for deployment:
 
+```
 models/
-├── random_forest.pkl           # serialized model
+├── random_forest.pkl           # serialized Random Forest model
+├── xgboost_model.pkl           # serialized XGBoost model
 ├── columns.json                # feature schema (column order)
-└── random_forest_metrics.json  # evaluation metrics
+├── random_forest_metrics.json  # RF evaluation metrics
+└── xgboost_metrics.json        # XGBoost evaluation metrics
+```
+
+## XGBoost Training (Task 34A)
+
+XGBoost was trained on the same feature set and train/test split as the
+Random Forest for a direct comparison.
+
+### Setup
+
+XGBoost is already listed in `requirements.txt`. If it is not installed yet:
+
+```powershell
+python -m pip install xgboost==2.1.4
+```
+
+### Run
+
+```powershell
+python scr\13_train_xgboost.py
+```
+
+This will:
+1. Load `data/processed/final_ml_dataset.parquet`
+2. Sample 1,000,000 rows (seed 42)
+3. Split 80/20 stratified
+4. Run 12-iteration RandomizedSearchCV (3-fold CV) for light hyper-parameter tuning
+5. Evaluate on the hold-out set
+6. Save model, feature schema, and metrics to `models/`
+
+### XGBoost Performance
+
+| Metric   | XGBoost | Random Forest | Logistic Reg |
+|----------|---------|---------------|-------------|
+| Accuracy | **0.5897** | 0.5642     | 0.547       |
+| F1 Score | **0.5636** | 0.5626     | 0.590       |
+| ROC-AUC  | **0.6256** | 0.5915     | 0.574       |
+
+XGBoost improves ROC-AUC by +3.4 pp over Random Forest, which is the
+primary metric for probabilistic ranking quality.
+
+### Best Hyper-parameters Found
+
+| Parameter         | Value |
+|-------------------|-------|
+| n_estimators      | 300   |
+| max_depth         | 8     |
+| learning_rate     | 0.1   |
+| subsample         | 1.0   |
+| colsample_bytree  | 0.6   |
+| reg_lambda        | 5     |
+| gamma             | 0.1   |
+| min_child_weight  | 1     |
+| reg_alpha         | 0.1   |
 Why the Feature Schema is Saved
 
 The model expects input features in a specific order.
