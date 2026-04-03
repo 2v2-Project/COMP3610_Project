@@ -13,3 +13,4 @@ requests>=2.31.0,<3.0
 pyarrow==17.0.0
 xgboost==2.1.4
 plotly>=5.0
+shap==0.46.0
