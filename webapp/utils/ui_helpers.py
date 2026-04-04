@@ -64,6 +64,28 @@ h1,
     background-color: #f0f4fa !important;
 }
 
+.stApp {
+    background-image: url('/app/static/background.png') !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-attachment: fixed !important;
+    background-repeat: no-repeat !important;
+}
+
+.stApp::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(220, 230, 245, 0.82);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 0;
+    pointer-events: none;
+}
+
 /* Sidebar */
 section[data-testid="stSidebar"] {
     background: linear-gradient(180deg, #1a3a6e 0%, #1e4d8c 100%) !important;
@@ -165,6 +187,11 @@ button[data-baseweb="tab"][aria-selected="true"] {
 /* Captions */
 [data-testid="stCaptionContainer"] {
     color: #8395a7 !important;
+}
+
+/* Top header / deploy bar */
+header[data-testid="stHeader"] {
+    background: transparent !important;
 }
 
 /* Expander */

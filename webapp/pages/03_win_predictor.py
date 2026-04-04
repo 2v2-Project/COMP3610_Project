@@ -169,6 +169,11 @@ st.markdown(
         width: 13px;
         height: 13px;
     }
+
+    /* Make Streamlit top header/deploy bar transparent */
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -213,6 +218,7 @@ def load_card_assets():
         "evolution",
         "mirror mode",
         "placeholder",
+        "raging",
     ]
 
     mask = ~card_df["name"].str.lower().apply(
@@ -418,10 +424,11 @@ def render_deck_builder(
     elixir_map: dict,
     icon_map: dict,
 ):
-    """Render the deck builder UI with all cards visible."""
+    """Render the deck builder UI with image-based card browser."""
     st.markdown("<div class='section-label'>Your Deck</div>", unsafe_allow_html=True)
     filled = _filled()
 
+    # Show selected deck cards in 2 rows of 4
     for row_start in (0, 4):
         cols = st.columns(4, gap="small")
         for i in range(4):
@@ -439,7 +446,7 @@ def render_deck_builder(
                         )
                     else:
                         render_card_image(cid, icon_map, name_map)
-                    if st.button("✕", key=f"rm_{idx}", use_container_width=True):
+                    if st.button("\u2715", key=f"rm_{idx}", use_container_width=True):
                         _remove(idx)
                         st.rerun()
 
@@ -450,7 +457,7 @@ def render_deck_builder(
 
         c1, c2, c3, c4, c5 = st.columns(5)
         c1.metric("Avg Elixir", f"{avg_e:.1f}")
-        c2.metric("Cycle", cyc if cyc else "—")
+        c2.metric("Cycle", cyc if cyc else "\u2014")
         c3.metric("Troops", tc["troop_count"])
         c4.metric("Spells", tc["spell_count"])
         c5.metric("Buildings", tc["building_count"])
@@ -461,13 +468,18 @@ def render_deck_builder(
         _clear()
         st.rerun()
 
-    st.markdown("<div class='chooser-section'>", unsafe_allow_html=True)
-    st.markdown("<strong>Browse all cards - Select any to add to your deck</strong>", unsafe_allow_html=True)
+    if len(filled) >= 8:
+        return
 
+    already_selected = set(filled)
+
+    # Render all available cards as a single HTML grid per category (fast, no st.image)
     elixir_icon = "https://cdn.royaleapi.com/static/img/ui/elixir.png"
+    category_map = [("Troops", "troop"), ("Spells", "spell"), ("Buildings", "building")]
 
-    for cat_label, cat_key in [("Troops", "troop"), ("Spells", "spell"), ("Buildings", "building")]:
-        section = card_df[card_df["card_id"].map(type_map).fillna("") == cat_key].reset_index(drop=True)
+    for cat_label, cat_key in category_map:
+        section = card_df[card_df["card_id"].map(type_map).fillna("") == cat_key]
+        section = section[~section["card_id"].isin(already_selected)].reset_index(drop=True)
         if section.empty:
             continue
 
@@ -478,7 +490,7 @@ def render_deck_builder(
             unsafe_allow_html=True,
         )
 
-        per_row = 6
+        per_row = 8
         for start in range(0, len(section), per_row):
             chunk = section.iloc[start:start + per_row]
             cols = st.columns(per_row, gap="small")
@@ -486,25 +498,27 @@ def render_deck_builder(
                 with cols[ci]:
                     cid = int(row["card_id"])
                     url = icon_map.get(cid)
-                    if url:
-                        st.image(url, use_container_width=True)
-
+                    cname = name_map.get(cid, str(cid))
                     ec = elixir_map.get(cid, "")
+
+                    html = ""
+                    if url:
+                        html += f"<img src='{url}' style='width:100%;border-radius:10px;'/>"
+                    else:
+                        html += f"<div style='border:1px solid #c5d5ea;border-radius:10px;padding:8px;text-align:center;min-height:70px;display:flex;align-items:center;justify-content:center;font-size:11px;color:#6b7fa3;background:#fff;'>{cname}</div>"
                     if ec:
-                        st.markdown(
+                        html += (
                             f"<div style='text-align:center'>"
                             f"<span class='elixir-badge'>"
-                            f"<img src='{elixir_icon}'/>{ec}</span></div>",
-                            unsafe_allow_html=True,
+                            f"<img src='{elixir_icon}'/>{ec}</span></div>"
                         )
+                    st.markdown(html, unsafe_allow_html=True)
 
                     if st.button("Add", key=f"add_{cid}", use_container_width=True):
                         next_slot = next((i for i, v in enumerate(st.session_state.deck_slots) if v is None), None)
                         if next_slot is not None:
                             _add(next_slot, cid)
                             st.rerun()
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def get_prediction_explanation_bullets(
@@ -597,7 +611,6 @@ def main():
 
     render_deck_builder(card_df, name_map, type_map, elixir_map, icon_map)
 
-    st.divider()
     selected_cards = _filled()
     ready = len(selected_cards) == 8
 
@@ -621,12 +634,22 @@ def main():
     cycle_cost = compute_cycle_cost(selected_cards, elixir_map)
     tc = count_card_types(selected_cards, type_map)
 
-    model, model_name, feature_schema = load_model_resources()
-    model_probability = predict_probability_with_xgboost(
-        deck_cards=selected_cards,
-        metadata_df=metadata_df,
-        feature_schema=feature_schema,
-    )
+    model = None
+    model_name = None
+    feature_schema = None
+    model_probability = None
+
+    try:
+        model, model_name, feature_schema = load_model_resources()
+        model_probability = predict_probability_with_xgboost(
+            deck_cards=selected_cards,
+            metadata_df=metadata_df,
+            feature_schema=feature_schema,
+        )
+    except FileNotFoundError:
+        logger.info("No trained model found; using historical data only.")
+    except Exception as e:
+        logger.warning("Model loading failed: %s: %s", type(e).__name__, str(e)[:150])
 
     if model_probability is not None:
         player_win_prob = round(model_probability * 100.0, 2)
@@ -642,7 +665,7 @@ def main():
             probability=player_win_prob / 100.0,
             historical_confidence_label=historical_conf,
             model_probabilities={model_name: model_probability}
-            if model_probability is not None
+            if model_probability is not None and model_name is not None
             else None,
             model_weight=0.6,
             historical_weight=0.4,
