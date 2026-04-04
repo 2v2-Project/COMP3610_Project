@@ -1,4 +1,5 @@
 from pathlib import Path
+import base64
 
 import duckdb
 import streamlit as st
@@ -6,33 +7,150 @@ import streamlit as st
 st.set_page_config(
     page_title="Clash Royale Analytics Engine",
     layout="wide",
+    initial_sidebar_state="expanded",
 )
 
 from utils.ui_helpers import inject_fonts
 inject_fonts()
 
 # ------------------------------------------------------------------
-# Page-level CSS (Intercom-inspired hero + card layout)
+# Page-level CSS (Esports hero banner + card layout)
 # ------------------------------------------------------------------
 st.markdown("""
 <style>
 section.main > div { max-width: 1140px; margin: auto; }
 
-.hero-section {
+/* ---- Hero banner carousel ---- */
+.hero-banner {
+    position: relative;
+    width: 100%;
+    height: 380px;
+    border-radius: 18px;
+    overflow: hidden;
+    margin-bottom: 32px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+}
+.hero-slides {
+    position: absolute; inset: 0;
+    animation: heroFade 15s infinite;
+}
+.hero-slides .slide {
+    position: absolute; inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0;
+    transition: opacity 1.2s ease-in-out;
+}
+.hero-slides .slide:nth-child(1) { animation: slide1 15s infinite; }
+.hero-slides .slide:nth-child(2) { animation: slide2 15s infinite; }
+.hero-slides .slide:nth-child(3) { animation: slide3 15s infinite; }
+
+@keyframes slide1 {
+    0%,5%   { opacity:1; }
+    33%,38% { opacity:0; }
+    95%,100%{ opacity:1; }
+}
+@keyframes slide2 {
+    0%,28%  { opacity:0; }
+    33%,38% { opacity:1; }
+    66%,71% { opacity:0; }
+}
+@keyframes slide3 {
+    0%,61%  { opacity:0; }
+    66%,71% { opacity:1; }
+    95%,100%{ opacity:0; }
+}
+
+.hero-overlay {
+    position: absolute; inset: 0;
+    background: linear-gradient(
+        135deg,
+        rgba(5,8,20,0.90) 0%,
+        rgba(10,18,45,0.82) 50%,
+        rgba(12,25,55,0.75) 100%
+    );
+    z-index: 2;
+}
+.hero-content {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
     text-align: center;
-    padding: 48px 20px 32px;
+    padding: 20px 24px;
 }
-.hero-section h1 {
-    font-size: 42px !important;
-    line-height: 1.15;
-    margin-bottom: 16px;
+.hero-content h1 {
+    font-size: 46px !important;
+    font-weight: 800;
+    color: #ffffff !important;
+    line-height: 1.1;
+    margin-bottom: 14px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.7), 0 4px 20px rgba(0,0,0,0.5);
+    letter-spacing: -0.5px;
 }
-.hero-subtitle {
-    color: #5a7394;
+.hero-content .hero-accent {
+    color: #6db8ff;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.7), 0 0 30px rgba(77,163,255,0.25);
+}
+.hero-tagline {
+    color: rgba(255,255,255,0.95);
     font-size: 17px;
-    max-width: 640px;
-    margin: 0 auto 32px;
-    line-height: 1.6;
+    max-width: 620px;
+    line-height: 1.65;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.6), 0 2px 12px rgba(0,0,0,0.3);
+}
+.hero-badge {
+    display: inline-block;
+    margin-top: 18px;
+    background: rgba(30,80,160,0.65);
+    border: 1px solid rgba(100,180,255,0.50);
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 20px;
+    border-radius: 999px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    backdrop-filter: blur(6px);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* ---- Indicators ---- */
+.hero-indicators {
+    position: absolute;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 4;
+    display: flex;
+    gap: 8px;
+}
+.hero-indicators span {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+    display: inline-block;
+}
+.hero-indicators span:nth-child(1) { animation: dot1 15s infinite; }
+.hero-indicators span:nth-child(2) { animation: dot2 15s infinite; }
+.hero-indicators span:nth-child(3) { animation: dot3 15s infinite; }
+@keyframes dot1 {
+    0%,5%   { background:rgba(255,255,255,0.9); }
+    33%,100%{ background:rgba(255,255,255,0.35); }
+    95%     { background:rgba(255,255,255,0.9); }
+}
+@keyframes dot2 {
+    0%,28%  { background:rgba(255,255,255,0.35); }
+    33%,38% { background:rgba(255,255,255,0.9); }
+    66%,100%{ background:rgba(255,255,255,0.35); }
+}
+@keyframes dot3 {
+    0%,61%  { background:rgba(255,255,255,0.35); }
+    66%,71% { background:rgba(255,255,255,0.9); }
+    95%,100%{ background:rgba(255,255,255,0.35); }
 }
 
 .stat-pill-row {
@@ -206,14 +324,34 @@ def _load_home_metrics() -> dict:
 m = _load_home_metrics()
 
 # ------------------------------------------------------------------
-# Hero section
+# Hero banner
 # ------------------------------------------------------------------
-st.markdown("""
-<div class="hero-section">
-    <h1>Clash Royale Analytics Engine</h1>
-    <div class="hero-subtitle">
-        Deep-dive into deck performance, card meta-game analysis, and match outcome
-        predictions &mdash; all powered by machine learning on real ladder data.
+def _img_to_data_uri(path: str) -> str:
+    data = Path(path).read_bytes()
+    return f"data:image/jpeg;base64,{base64.b64encode(data).decode()}"
+
+_b1 = _img_to_data_uri("webapp/static/banner1.jpg")
+_b2 = _img_to_data_uri("webapp/static/banner2.jpg")
+_b3 = _img_to_data_uri("webapp/static/banner3.jpg")
+
+st.markdown(f"""
+<div class="hero-banner">
+    <div class="hero-slides">
+        <div class="slide" style="background-image:url('{_b1}');"></div>
+        <div class="slide" style="background-image:url('{_b2}');"></div>
+        <div class="slide" style="background-image:url('{_b3}');"></div>
+    </div>
+    <div class="hero-overlay"></div>
+    <div class="hero-content">
+        <h1>Clash Royale<br><span class="hero-accent">Analytics Engine</span></h1>
+        <div class="hero-tagline">
+            Deep-dive into deck performance, card meta-game analysis, and match outcome
+            predictions &mdash; all powered by machine learning on real ladder data.
+        </div>
+        <div class="hero-badge">12.4 M+ Matches Analysed</div>
+    </div>
+    <div class="hero-indicators">
+        <span></span><span></span><span></span>
     </div>
 </div>
 """, unsafe_allow_html=True)

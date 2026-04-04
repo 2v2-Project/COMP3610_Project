@@ -169,16 +169,28 @@ def load_match_data() -> pl.DataFrame:
     raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")
 
 
+def _build_deck_key_col(df: pl.DataFrame, card_cols: list[str], alias: str) -> pl.DataFrame:
+    """Build a canonical deck key column using Polars vectorized ops."""
+    return df.with_columns(
+        pl.concat_list(card_cols)
+        .list.eval(pl.element().cast(pl.Int64))
+        .list.sort()
+        .list.eval(pl.element().cast(pl.Utf8))
+        .list.join(",")
+        .alias(alias)
+    )
+
+
 @st.cache_data(show_spinner="Building deck key index \u2026", ttl=3600)
 def _keyed_match_data() -> pd.DataFrame:
-    """Compute deck keys ONCE and cache. Reused by build_deck_lookup and h2h."""
-    df = load_match_data().to_pandas()
-    df["p_key"] = df[PLAYER_CARD_COLS].apply(
-        lambda r: build_deck_key([int(x) for x in r]), axis=1)
-    df["o_key"] = df[OPPONENT_CARD_COLS].apply(
-        lambda r: build_deck_key([int(x) for x in r]), axis=1)
-    df["p_win"] = (df[PLAYER_CROWNS_COL] > df[OPPONENT_CROWNS_COL]).astype(int)
-    return df
+    """Compute deck keys ONCE using Polars (vectorized), then convert to pandas."""
+    df = load_match_data()
+    df = _build_deck_key_col(df, PLAYER_CARD_COLS, "p_key")
+    df = _build_deck_key_col(df, OPPONENT_CARD_COLS, "o_key")
+    df = df.with_columns(
+        (pl.col(PLAYER_CROWNS_COL) > pl.col(OPPONENT_CROWNS_COL)).cast(pl.Int8).alias("p_win")
+    )
+    return df.select(["p_key", "o_key", "p_win"]).to_pandas()
 
 
 @st.cache_data(show_spinner=True, ttl=3600)
@@ -459,7 +471,6 @@ def main():
 
     _init_state()
     card_df, name_map, type_map, elixir_map, icon_map = load_card_assets()
-    decks_df = build_deck_lookup(MIN_MATCHES)
 
     # ── Two side-by-side deck builders ──────────────────────────────
     left_col, right_col = st.columns(2, gap="large")
@@ -485,6 +496,7 @@ def main():
         return
 
     # ── Compute stats ───────────────────────────────────────────────
+    decks_df = build_deck_lookup(MIN_MATCHES)
     p_key = build_deck_key(p_cards)
     o_key = build_deck_key(o_cards)
 
