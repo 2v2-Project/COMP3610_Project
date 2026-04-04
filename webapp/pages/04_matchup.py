@@ -30,9 +30,10 @@ from utils.deck_helpers import (
 from utils.uncertainty import (
     confidence_from_match_count,
     combine_confidence_signals,
-    get_model_predictions_safe,
+    predict_probability_with_xgboost,
 )
 from utils.metadata import get_card_metadata
+from utils.model_loader import load_feature_schema
 
 st.set_page_config(page_title="Matchup Analysis", layout="wide")
 
@@ -433,14 +434,38 @@ def main():
         combined_matches += h2h["total_matches"]
     historical_conf = confidence_from_match_count(combined_matches)
 
-    # Model-based confidence (hybrid)
+    # XGBoost-based probability estimate
     try:
         metadata_df = get_card_metadata(force_refresh=False)
-        model_probs = get_model_predictions_safe(p_cards, metadata_df)
+        feature_schema = load_feature_schema()
+        player_model_prob = predict_probability_with_xgboost(
+            deck_cards=p_cards,
+            metadata_df=metadata_df,
+            feature_schema=feature_schema,
+        )
+        opponent_model_prob = predict_probability_with_xgboost(
+            deck_cards=o_cards,
+            metadata_df=metadata_df,
+            feature_schema=feature_schema,
+        )
+
+        if player_model_prob is not None and opponent_model_prob is not None:
+            total_model_prob = player_model_prob + opponent_model_prob
+            if total_model_prob > 0:
+                player_win_prob = round((player_model_prob / total_model_prob) * 100.0, 2)
+            else:
+                player_win_prob = p_est["win_rate"]
+        elif player_model_prob is not None:
+            player_win_prob = round(player_model_prob * 100.0, 2)
+        else:
+            player_win_prob = p_est["win_rate"]
+
         conf_result = combine_confidence_signals(
             probability=player_win_prob / 100.0,
             historical_confidence_label=historical_conf,
-            model_probabilities=model_probs,
+            model_probabilities={"XGBoost": player_model_prob}
+            if player_model_prob is not None
+            else None,
             model_weight=0.6,
             historical_weight=0.4,
         )

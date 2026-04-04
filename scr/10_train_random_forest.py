@@ -105,12 +105,3 @@ print(feature_importance.sort_values(ascending=False).head(10))
 # - Accuracy: 0.5655
 # - F1 Score: 0.5631
 # - ROC-AUC: 0.5918
-
-# Observations:
-# - Random Forest has higher accuracy and ROC-AUC
-# - Logistic Regression has higher F1 score
-# - RF captures nonlinear patterns better
-# - LR better balances win predictions
-
-# Conclusion:
-# - Random Forest chosen as better overall model
