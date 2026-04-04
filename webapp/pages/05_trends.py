@@ -58,7 +58,7 @@ def query(sql: str) -> pd.DataFrame:
 @st.cache_data
 def load_card_meta():
     meta = pd.read_csv(DATA_DIR / "card_metadata.csv")
-    return dict(zip(meta["card_id"], meta["name"])), dict(zip(meta["card_id"], meta["type"])), dict(zip(meta["card_id"], meta["elixir"]))
+    return dict(zip(meta["card_id"], meta["card_name"])), dict(zip(meta["card_id"], meta["card_type"])), dict(zip(meta["card_id"], meta["elixir_cost"]))
 
 
 card_name_map, card_type_map, card_elixir_map = load_card_meta()
