@@ -119,20 +119,35 @@ st.markdown(
     }
 
     .explanation-box {
-        background: #f0f7ff;
-        border: 1px solid #a8d5ff;
+        background: linear-gradient(135deg, #f0f7ff 0%, #e8f2ff 100%);
+        border: 1px solid #c0d8f0;
         border-left: 4px solid #1a5490;
-        border-radius: 8px;
-        padding: 14px 16px;
+        border-radius: 10px;
+        padding: 18px 20px;
         margin: 12px 0;
         color: #1a3a6e;
         font-size: 14px;
-        line-height: 1.6;
+        line-height: 1.7;
+    }
+
+    .explanation-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-weight: 700;
+        font-size: 15px;
+        color: #1a3a6e;
     }
 
     .explanation-bullet {
-        margin: 8px 0;
-        padding-left: 8px;
+        margin: 10px 0;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 8px;
+        border-left: 3px solid #4a90d9;
+        font-size: 14px;
+        line-height: 1.6;
     }
 
     .deck-card-wrap {
@@ -722,10 +737,17 @@ def main():
             source_label=p_est["source"],
         )
 
-    st.markdown("<div class='explanation-box'>", unsafe_allow_html=True)
-    for bullet in explanation_bullets:
-        st.markdown(f"<div class='explanation-bullet'>• {bullet}</div>", unsafe_allow_html=True)
-    st.markdown("</div>", unsafe_allow_html=True)
+    bullets_html = "".join(
+        f"<div class='explanation-bullet'>{bullet}</div>"
+        for bullet in explanation_bullets
+    )
+    st.markdown(
+        f"<div class='explanation-box'>"
+        f"<div class='explanation-header'>🧠 Deck Analysis</div>"
+        f"{bullets_html}"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
     st.divider()
     st.subheader("Deck Overview")
