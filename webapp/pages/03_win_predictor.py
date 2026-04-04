@@ -33,9 +33,9 @@ from utils.uncertainty import (
     combine_confidence_signals,
     confidence_from_match_count,
     confidence_from_similar_decks,
-    get_model_predictions_safe,
+    predict_probability_with_xgboost,
 )
-from utils.model_loader import load_best_model, load_feature_schema
+from utils.model_loader import load_best_model, load_feature_schema, load_xgboost_model
 from utils.preprocess import build_feature_vector
 from utils.explanation_engine import build_prediction_explanations
 from utils.ui_helpers import inject_fonts
@@ -352,15 +352,12 @@ def estimate_deck_win_rate(cards: list[int], decks_df: pd.DataFrame) -> dict:
 @st.cache_resource(show_spinner=False)
 def load_model_resources():
     """Cache model and feature schema."""
-    model_obj = load_best_model()
+    try:
+        model = load_xgboost_model()
+        model_name = "XGBoost"
+    except Exception:
+        model, model_name = load_best_model()
     feature_schema = load_feature_schema()
-
-    if isinstance(model_obj, tuple) and len(model_obj) == 2:
-        model, model_name = model_obj
-    else:
-        model = model_obj
-        model_name = "Loaded Model"
-
     return model, model_name, feature_schema
 
 
@@ -624,20 +621,29 @@ def main():
     cycle_cost = compute_cycle_cost(selected_cards, elixir_map)
     tc = count_card_types(selected_cards, type_map)
 
-    player_win_prob = p_est["win_rate"]
+    model, model_name, feature_schema = load_model_resources()
+    model_probability = predict_probability_with_xgboost(
+        deck_cards=selected_cards,
+        metadata_df=metadata_df,
+        feature_schema=feature_schema,
+    )
+
+    if model_probability is not None:
+        player_win_prob = round(model_probability * 100.0, 2)
+        probability_source = f"{model_name} model"
+    else:
+        player_win_prob = p_est["win_rate"]
+        probability_source = p_est["source"]
+
     historical_conf = p_est["confidence"]
 
     try:
-        _model, _model_name, feature_schema = load_model_resources()
-        model_probs = get_model_predictions_safe(
-            deck_cards=selected_cards,
-            metadata_df=metadata_df,
-            feature_schema=feature_schema,
-        )
         conf_result = combine_confidence_signals(
             probability=player_win_prob / 100.0,
             historical_confidence_label=historical_conf,
-            model_probabilities=model_probs,
+            model_probabilities={model_name: model_probability}
+            if model_probability is not None
+            else None,
             model_weight=0.6,
             historical_weight=0.4,
         )
@@ -672,7 +678,7 @@ def main():
     m3.metric("Confidence", confidence)
 
     render_confidence(confidence)
-    st.caption(f"Based on: {p_est['source']}")
+    st.caption(f"Based on: {probability_source}")
 
     st.divider()
     st.subheader("Why This Prediction Makes Sense")

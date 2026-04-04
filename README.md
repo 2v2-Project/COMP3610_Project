@@ -125,19 +125,12 @@ The tuned model improved ROC-AUC slightly but significantly reduced F1 score, in
 
 ## Final Model Training
 
-The selected Random Forest model was retrained using a 1,000,000-row sample, which represented the largest dataset size that could be processed reliably within local hardware constraints.
+The selected XGBoost was retrained using a 1,000,000-row sample, which represented the largest dataset size that could be processed reliably within local hardware constraints.
 
-Final Model Configuration
-n_estimators = 200
-max_depth = 15
-min_samples_split = 5
-min_samples_leaf = 2
-class_weight = "balanced"
 Final Performance
-Accuracy: 0.5642
-F1 Score: 0.5626
-ROC-AUC: 0.5915
-
+Accuracy: 0.5827
+F1 Score: 0.5545
+ROC-AUC: 0.6154
 These results were consistent with earlier experiments, indicating stable model behavior.
 
 ## Saved Artifacts
@@ -147,16 +140,11 @@ The final trained models and required metadata were saved for deployment:
 ```
 models/
 ├── random_forest.pkl           # serialized Random Forest model
-├── xgboost_model.pkl           # serialized XGBoost model
+├── xgboost_model.joblib        # serialized XGBoost model
 ├── columns.json                # feature schema (column order)
 ├── random_forest_metrics.json  # RF evaluation metrics
 └── xgboost_metrics.json        # XGBoost evaluation metrics
 ```
-
-## XGBoost Training (Task 34A)
-
-XGBoost was trained on the same feature set and train/test split as the
-Random Forest for a direct comparison.
 
 ### Setup
 

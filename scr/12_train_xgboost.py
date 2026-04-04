@@ -5,7 +5,7 @@ Uses the same feature set, sample size, and train/test split as
 12_train_final.py (Random Forest) for direct comparison.
 
 Includes light hyper-parameter tuning via RandomizedSearchCV (cheap
-but effective) and saves all artifacts to models/.
+but effective) and saves the trained model/schema to models/.
 """
 
 import os
@@ -35,7 +35,7 @@ DATA_PATH = "data/processed/final_ml_dataset.parquet"
 TARGET_COL = "target_win"
 DROP_COLS = [TARGET_COL, "match_id"]
 
-SAMPLE_SIZE = 1_000_000   # same as 12_train_final.py
+SAMPLE_SIZE = 500_000   # same as 12_train_final.py
 RANDOM_STATE = 42
 TEST_SIZE = 0.2
 THRESHOLD = 0.50
@@ -48,7 +48,6 @@ TUNE_CV_FOLDS = 3
 MODEL_DIR = "models"
 MODEL_PATH = os.path.join(MODEL_DIR, "xgboost_model.pkl")
 SCHEMA_PATH = os.path.join(MODEL_DIR, "columns.json")
-METRICS_PATH = os.path.join(MODEL_DIR, "xgboost_metrics.json")
 
 
 # =========================
@@ -147,8 +146,7 @@ def evaluate(model, X_test: pd.DataFrame, y_test: pd.Series, threshold: float):
     }
 
 
-def save_artifacts(model, columns: list[str], best_params: dict,
-                   best_cv_auc: float, test_metrics: dict, elapsed: float):
+def save_artifacts(model, columns: list[str]):
     os.makedirs(MODEL_DIR, exist_ok=True)
 
     joblib.dump(model, MODEL_PATH)
@@ -156,26 +154,9 @@ def save_artifacts(model, columns: list[str], best_params: dict,
     with open(SCHEMA_PATH, "w") as f:
         json.dump(columns, f, indent=2)
 
-    meta = {
-        "model_name": "xgboost",
-        "sample_size": SAMPLE_SIZE,
-        "threshold": THRESHOLD,
-        "tune_n_iter": TUNE_N_ITER,
-        "tune_cv_folds": TUNE_CV_FOLDS,
-        "best_cv_roc_auc": round(float(best_cv_auc), 4),
-        **test_metrics,
-        "best_params": {k: (v if not isinstance(v, np.generic) else v.item())
-                        for k, v in best_params.items()},
-        "training_time_seconds": round(elapsed, 1),
-    }
-
-    with open(METRICS_PATH, "w") as f:
-        json.dump(meta, f, indent=2)
-
     print("\n=== Saved Artifacts ===")
     print(f"Model:          {MODEL_PATH}")
     print(f"Feature schema: {SCHEMA_PATH}")
-    print(f"Metrics:        {METRICS_PATH}")
 
 
 def print_feature_importance(model, columns: list[str], top_n: int = 15):
@@ -214,13 +195,19 @@ def main():
     # 4. Evaluate on hold-out
     test_metrics = evaluate(best_model, X_test, y_test, THRESHOLD)
 
+    print("\n=== XGBoost Metrics Summary ===")
+    print(f"Best CV ROC-AUC: {best_cv_auc:.4f}")
+    print(f"Best params: {best_params}")
+    print(f"Hold-out accuracy: {test_metrics['accuracy']:.4f}")
+    print(f"Hold-out F1:       {test_metrics['f1_score']:.4f}")
+    print(f"Hold-out ROC-AUC:  {test_metrics['roc_auc']:.4f}")
+
     # 5. Feature importance
     print_feature_importance(best_model, X.columns.tolist())
 
     # 6. Save
     elapsed = time.time() - t0
-    save_artifacts(best_model, X.columns.tolist(), best_params,
-                   best_cv_auc, test_metrics, elapsed)
+    save_artifacts(best_model, X.columns.tolist())
 
     print(f"\nTotal time: {elapsed / 60:.1f} minutes")
     print("Done.")
@@ -228,3 +215,34 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# Model comparison to add into documentation later
+
+# Logistic Regression:
+# - Accuracy: 0.5511
+# - F1 Score: 0.5917
+# - ROC-AUC: 0.5764
+
+# Random Forest:
+# - Accuracy: 0.5655
+# - F1 Score: 0.5631
+# - ROC-AUC: 0.5918
+
+# Tuned Random Forest:
+# - Best params: n_estimators=100, max_depth=20
+# - Accuracy: 0.5679
+# - F1 Score: 0.5136
+# - ROC-AUC: 0.5956
+
+# XGBoost:
+# - Accuracy: 0.5827
+# - F1 Score: 0.5545
+# - ROC-AUC: 0.6154
+
+# Observations:
+# - XGBoost has highest accuracy and ROC-AUC
+# - Logistic Regression has highest F1 score 
+# - RF models have similar performance, but tuning improves ROC-AUC at cost of F1
+
+# Conclusion:
+# - XGBoost chosen as better overall model

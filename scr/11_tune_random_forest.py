@@ -147,15 +147,8 @@ if __name__ == "__main__":
 # - F1 Score: 0.5633
 # - ROC-AUC: 0.5912
 #
-# Tuned Random Forest (this script, sample=200k, cv=2, n_iter=6):
+# Tuned Random Forest (this script, sample=500k, cv=2, n_iter=6):
 # - Best params: n_estimators=100, max_depth=20
 # - Accuracy: 0.5679
 # - F1 Score: 0.5136
 # - ROC-AUC: 0.5956
-#
-# Findings:
-# - Best ROC-AUC comes from tuned RF, then baseline RF, then logistic regression.
-# - Logistic regression has the highest F1 in these runs.
-# - Tuned RF improves ranking/discrimination (ROC-AUC) but predicts fewer positives,
-#   which lowers recall/F1 at threshold=0.50.
-# - Best Model: Baseline RF

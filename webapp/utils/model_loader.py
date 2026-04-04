@@ -121,7 +121,7 @@ def load_best_model(
     )
 
 
-def load_feature_schema(path: Union[str, Path] = "models/feature_schema.json") -> Union[List[str], Dict[str, Any]]:
+def load_feature_schema(path: Union[str, Path] = "models/columns.json") -> Union[List[str], Dict[str, Any]]:
     """
     Load feature schema from JSON file.
     

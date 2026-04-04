@@ -181,6 +181,43 @@ def get_model_predictions_safe(
     return model_probabilities if len(model_probabilities) > 0 else None
 
 
+def predict_probability_with_xgboost(
+    deck_cards: list[int],
+    metadata_df: pd.DataFrame,
+    feature_schema: Optional[list[str] | Dict[str, Any]] = None,
+) -> Optional[float]:
+    """
+    Load the XGBoost model and predict the win probability for a deck.
+
+    Returns None if the model, schema, or feature vector cannot be built.
+    """
+    try:
+        from .preprocess import build_feature_vector
+        from .model_loader import load_xgboost_model, load_feature_schema
+    except ImportError:
+        return None
+
+    if feature_schema is None:
+        try:
+            feature_schema = load_feature_schema()
+        except Exception:
+            return None
+
+    try:
+        feature_df = build_feature_vector(
+            deck_cards=deck_cards,
+            metadata_df=metadata_df,
+            feature_schema=feature_schema,
+        )
+        model = load_xgboost_model()
+        if hasattr(model, "predict_proba"):
+            return float(model.predict_proba(feature_df)[0][1])
+        prediction = float(model.predict(feature_df)[0])
+        return prediction if 0.0 <= prediction <= 1.0 else None
+    except Exception:
+        return None
+
+
 def combine_confidence_signals(
     probability: float,
     historical_confidence_label: str,
