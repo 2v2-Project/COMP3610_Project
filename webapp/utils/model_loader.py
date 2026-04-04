@@ -78,7 +78,9 @@ def load_xgboost_model() -> Any:
     """
     path = Path("models/xgboost_model.joblib")
     if not path.exists():
-        raise FileNotFoundError(f"XGBoost model not found at {path}")
+        path = Path("models/xgboost_model.pkl")
+    if not path.exists():
+        raise FileNotFoundError(f"XGBoost model not found at models/xgboost_model.joblib or .pkl")
     return load_model(path)
 
 

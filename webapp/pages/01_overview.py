@@ -54,7 +54,7 @@ def load_card_metadata():
 
 card_meta = load_card_metadata()
 card_name_map: dict[int, str] = dict(
-    zip(card_meta["card_id"], card_meta["name"])
+    zip(card_meta["card_id"], card_meta["card_name"])
 )
 
 # ------------------------------------------------------------------
