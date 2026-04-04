@@ -327,46 +327,86 @@ def main():
     # ── Tab 1: Heatmap ──
     with tab_heatmap:
         st.markdown("<div class='section-label'>Archetype vs Archetype Win Rate</div>", unsafe_allow_html=True)
-        st.caption("Cell value = Player (row) win rate vs Opponent (column). Green > 50 %, Red < 50 %.")
 
         heatmap_data = matrix.copy()
 
+        # Build figure with hidden text (annotations added manually for adaptive colours)
         fig = go.Figure(
             data=go.Heatmap(
                 z=heatmap_data.values,
                 x=heatmap_data.columns.tolist(),
                 y=heatmap_data.index.tolist(),
                 colorscale=[
-                    [0.0, "#ef4444"],
-                    [0.5, "#fef9c3"],
-                    [1.0, "#22c55e"],
+                    [0.0,  "#991b1b"],   # deep red  (low win rate)
+                    [0.25, "#dc2626"],   # red
+                    [0.5,  "#fef2f2"],   # near-white centre (50 %)
+                    [0.75, "#16a34a"],   # green
+                    [1.0,  "#14532d"],   # deep green (high win rate)
                 ],
                 zmin=35,
                 zmax=65,
-                text=np.where(
-                    np.isnan(heatmap_data.values),
-                    "",
-                    np.char.add(
-                        np.char.mod("%.1f", np.nan_to_num(heatmap_data.values)),
-                        np.full(heatmap_data.values.shape, "%"),
-                    ),
+                zmid=50,
+                showscale=True,
+                hovertemplate=(
+                    "<b>%{y}</b> vs <b>%{x}</b><br>"
+                    "Win Rate: <b>%{z:.1f}%</b><br>"
+                    "<extra></extra>"
                 ),
-                texttemplate="%{text}",
-                textfont=dict(size=12),
-                hovertemplate="Player: %{y}<br>Opponent: %{x}<br>Win Rate: %{z:.1f}%<extra></extra>",
-                colorbar=dict(title="Win %", ticksuffix="%"),
+                colorbar=dict(
+                    title=dict(text="Win Rate", font=dict(size=13)),
+                    ticksuffix="%",
+                    thickness=14,
+                    len=0.75,
+                    outlinewidth=0,
+                ),
+                xgap=4,
+                ygap=4,
             )
         )
+
+        # Per-cell annotations with adaptive font colour
+        for row_idx, y_label in enumerate(heatmap_data.index):
+            for col_idx, x_label in enumerate(heatmap_data.columns):
+                v = heatmap_data.values[row_idx, col_idx]
+                if np.isnan(v):
+                    continue
+                # White text on dark cells, dark text on light cells
+                dist_from_centre = abs(v - 50)
+                font_colour = "#ffffff" if dist_from_centre > 6 else "#1a1a1a"
+                fig.add_annotation(
+                    x=x_label, y=y_label,
+                    text=f"<b>{v:.1f}%</b>",
+                    showarrow=False,
+                    font=dict(size=13, color=font_colour, family="Inter, sans-serif"),
+                )
+
         fig.update_layout(
             xaxis_title="Opponent Archetype",
-            yaxis_title="Player Archetype",
-            height=520,
-            plot_bgcolor="rgba(0,0,0,0)",
+            yaxis_title="Your Archetype",
+            height=620,
+            plot_bgcolor="#f8fbff",
             paper_bgcolor="rgba(0,0,0,0)",
-            font_color="#1a3a6e",
+            font=dict(color="#1a3a6e", family="Inter, sans-serif"),
             yaxis_autorange="reversed",
+            margin=dict(l=120, r=80, t=20, b=80),
+            xaxis=dict(tickangle=-35, side="bottom"),
         )
         st.plotly_chart(fig, use_container_width=True)
+
+        # ── Heatmap explanation ──
+        st.markdown("""
+**How to read this heatmap:**
+
+Each cell shows the **win rate** when the row archetype (your deck) faces the column archetype (your opponent).
+- **Green cells (> 50%):** favourable matchup. Your archetype wins more often.
+- **Red cells (< 50%):** unfavourable matchup. You're at a disadvantage.
+- **White cells (around 50%):** roughly even. Skill and card levels decide the winner.
+
+**Example:** If the Sparky row and Cycle column shows 61.5%, Sparky decks beat Cycle decks about 6 out of 10 times.
+
+Use this to check how your deck archetype performs against popular archetypes. If you keep losing to a specific matchup, consider switching to an archetype that counters it.
+        """)
+
 
     # ── Tab 2: Table ──
     with tab_table:
@@ -390,13 +430,21 @@ def main():
             hide_index=True,
             height=500,
         )
+        st.markdown("""
+Same data as the heatmap in a searchable, sortable format. Each row is one matchup pairing.
+- **Matches:** how many times this matchup occurred (higher = more reliable).
+- **Wins:** number of wins for the player archetype.
+- **Win Rate %:** percentage of matches won by the player archetype.
+
+Click any column header to sort. Try sorting by Win Rate % to find the most dominant matchups.
+        """)
 
     # ── Tab 3: SHAP ──
     with tab_shap:
-        st.markdown("<div class='section-label'>SHAP Feature Importance</div>", unsafe_allow_html=True)
-        st.caption(
-            "Which features most influence the model's win prediction? "
-            "Computed via SHAP on a sample of match feature vectors."
+        st.markdown("<div class='section-label'>What Influences Win Predictions?</div>", unsafe_allow_html=True)
+        st.markdown(
+            "Our model looks at hundreds of deck features to predict who wins. "
+            "The charts below reveal **which features matter most**, showing how the model explains its reasoning."
         )
 
         with st.spinner("Running SHAP analysis..."):
@@ -412,17 +460,30 @@ def main():
             fig_imp, fig_summary, top_feats, model_name = shap_result
 
             st.plotly_chart(fig_imp, use_container_width=True)
+            st.markdown("""
+**Global Feature Importance:** Each bar shows how much a feature influences win predictions on average. Longer bars = bigger impact.
+
+For example, if `opp_troop_count` has the longest bar, **how many troops your opponent runs** is the single biggest factor.
+Features starting with `opp_` refer to your opponent's deck; `card_` features refer to specific cards by their game ID.
+            """)
 
             if fig_summary is not None:
-                st.markdown("**SHAP Summary (Beeswarm)**")
+                st.markdown("**Beeswarm Plot: How Each Feature Pushes the Prediction**")
                 st.pyplot(fig_summary, clear_figure=True)
+                st.markdown("""
+Each dot is one match. Colour shows the feature's value (**red = high**, **blue = low**).
+Position shows whether it pushed the prediction towards a win (right) or loss (left).
 
-            st.markdown("**Top Features Interpretation**")
+For example, if `opp_spell_count` has red dots on the right, opponents with **many spells tend to lose**.
+Blue dots on the right would mean a low value of that feature helps you win.
+                """)
+
+            st.markdown("**Top 5 Most Important Features**")
             interpretation_lines = []
             for feat, val in top_feats[:5]:
-                interpretation_lines.append(f"- **{feat}** (mean |SHAP| = {val:.4f})")
+                interpretation_lines.append(f"- **{feat}** (impact: {val:.4f})")
             st.markdown("\n".join(interpretation_lines))
-            st.caption(f"Model: {model_name} | Sample size: 200 decks")
+            st.caption(f"Model: {model_name} | Computed on a sample of 200 decks")
 
     # ── Archetype usage bar chart ──
     st.divider()
@@ -447,6 +508,11 @@ def main():
     )
     usage_fig.update_traces(textposition="outside")
     st.plotly_chart(usage_fig, use_container_width=True)
+    st.markdown("""
+Each bar shows an archetype's total matches. Colour indicates win rate (green = above 50%, red = below 50%).
+Tall green bars are popular **and** effective. Tall red bars are popular but underperforming.
+Small bars with green colour may be hidden gems worth trying.
+    """)
 
 
 if __name__ == "__main__":
