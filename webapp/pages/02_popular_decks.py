@@ -415,11 +415,8 @@ def render_deck_card(
     conf = row.get("confidence", "Medium")
     conf_cls = {"High": "conf-high", "Medium": "conf-medium", "Low": "conf-low"}.get(conf, "conf-medium")
 
-    st.markdown("<div class='deck-card-shell'>", unsafe_allow_html=True)
-
     st.markdown(
         f"<div class='deck-header'>"
-        f"<span class='deck-rank'>#{rank_num}</span>"
         f"<span class='archetype-tag'>{row['archetype']}</span>"
         f"<span>{int(row['troop_count'])}T / {int(row['spell_count'])}S / {int(row['building_count'])}B</span>"
         f"<span class='conf-badge {conf_cls}'>{conf} Confidence</span>"
@@ -469,8 +466,6 @@ def render_deck_card(
             """,
             unsafe_allow_html=True,
         )
-
-    st.markdown("</div>", unsafe_allow_html=True)
 
 
 def main():
@@ -583,6 +578,21 @@ def main():
 
     filtered_df = filtered_df.head(top_n).reset_index(drop=True)
 
+    total_matches = int(filtered_df["matches_played"].sum())
+    total_wins = int(filtered_df["wins"].sum())
+    total_losses = int(filtered_df["losses"].sum())
+    avg_wr = float(filtered_df["win_rate"].mean())
+
+    st.markdown(
+        f"<div style='display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;'>"
+        f"<span class='summary-chip'>📊 {len(filtered_df)} Decks</span>"
+        f"<span class='summary-chip'>🎮 {total_matches:,} Matches</span>"
+        f"<span class='summary-chip'>✅ {total_wins:,} Wins</span>"
+        f"<span class='summary-chip'>❌ {total_losses:,} Losses</span>"
+        f"<span class='summary-chip'>⚖️ Avg Win Rate: {avg_wr:.1f}%</span>"
+        f"</div>",
+        unsafe_allow_html=True,
+    )
 
     for idx, (_, row) in enumerate(filtered_df.iterrows(), start=1):
         render_deck_card(
