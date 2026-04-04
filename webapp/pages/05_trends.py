@@ -58,7 +58,7 @@ def query(sql: str) -> pd.DataFrame:
 @st.cache_data
 def load_card_meta():
     meta = pd.read_csv(DATA_DIR / "card_metadata.csv")
-    return dict(zip(meta["card_id"], meta["card_name"])), dict(zip(meta["card_id"], meta["card_type"])), dict(zip(meta["card_id"], meta["elixir_cost"]))
+    return dict(zip(meta["card_id"], meta["name"])), dict(zip(meta["card_id"], meta["type"])), dict(zip(meta["card_id"], meta["elixir"]))
 
 
 card_name_map, card_type_map, card_elixir_map = load_card_meta()
@@ -127,13 +127,13 @@ fig_usage.update_layout(
     **CHART_LAYOUT,
 )
 st.plotly_chart(fig_usage, use_container_width=True)
-st.caption(
-    "Shows how often each card appears across all player decks in the dataset. "
-    "Usage percentage is calculated as the number of times a card appears divided by "
-    "the total deck slots (matches × 16). Cards near the top define the meta — "
-    "they're reliable staples that fit into many deck types. Colour indicates card type "
-    "(troop, spell, or building)."
-)
+st.markdown("""
+The **most popular cards** on ladder. Usage % = how often a card appears across all deck slots.
+Cards near the top are **meta staples** that fit into many deck types. Colour shows card type:
+troop (attackers/defenders), spell (damage/utility), or building (defensive structures).
+
+Cards outside the top 20 aren't necessarily bad; they may be strong niche picks in specific archetypes.
+""")
 
 st.divider()
 
@@ -211,12 +211,10 @@ if selected_cards_for_trend:
         )
         st.plotly_chart(fig_daily, use_container_width=True)
 
-st.caption(
-    "Tracks how individual card popularity changes day-by-day over the 10-day window. "
-    "Rising lines indicate a card is gaining traction in the meta, while falling lines "
-    "suggest players are moving away from it. Select up to 10 cards to compare their "
-    "trajectories and spot emerging or declining trends."
-)
+st.markdown("""
+Track how card popularity shifts day-by-day. **Rising lines** mean a card is gaining traction,
+**falling lines** mean it's losing popularity. Select up to 10 cards to compare and spot emerging trends.
+""")
 
 st.divider()
 
@@ -254,11 +252,11 @@ with col_a1:
         **CHART_LAYOUT,
     )
     st.plotly_chart(fig_arch_bar, use_container_width=True)
-    st.caption(
-        "Frequency of each archetype across all matches. Archetypes are detected from "
-        "card composition — e.g. heavy tanks signal Beatdown, cheap cycles signal Cycle. "
-        "The 'Unknown' category contains decks that don't fit a standard archetype pattern."
-    )
+    st.markdown("""
+How many matches each archetype appeared in. Archetypes are detected from card composition
+(e.g. Golem/Giant = Beatdown, cheap Hog Rider = Cycle). "Unknown" covers creative decks
+that don't fit a standard archetype pattern.
+    """)
 
 with col_a2:
     arch_wr = query(f"""
@@ -290,12 +288,13 @@ with col_a2:
     )
     fig_awr.add_vline(x=50, line_dash="dash", line_color="#8395a7")
     st.plotly_chart(fig_awr, use_container_width=True)
-    st.caption(
-        "Average win rate per archetype. The dashed line marks 50% (break-even). "
-        "Archetypes above 50% over-perform on ladder during this period, while those "
-        "below struggle. Note that win rate and popularity don't always correlate — "
-        "a niche archetype can have a high win rate because only skilled players run it."
-    )
+    st.markdown("""
+Average win rate per archetype. The **dashed line at 50%** is break-even; archetypes to the right win more than they lose.
+
+**Key insight:** popular archetypes often sit near 50% because opponents know how to counter them.
+Rare archetypes can have higher win rates because fewer players prepare for them.
+The best edge comes from picking an archetype that's both **effective and underrepresented**.
+    """)
 
 st.divider()
 
@@ -310,28 +309,39 @@ PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 
 @st.cache_data
 def build_top_decks(min_matches: int) -> pd.DataFrame:
-    pdf = query(f"""
-        SELECT "player1.card1","player1.card2","player1.card3","player1.card4",
-               "player1.card5","player1.card6","player1.card7","player1.card8",
-               "player1.crowns", "player2.crowns"
-        FROM '{CLEAN}'
+    """Build top decks entirely in DuckDB for speed — avoids row-by-row Python."""
+    raw = query(f"""
+        WITH decks AS (
+            SELECT
+                list_sort(list_value(
+                    "player1.card1","player1.card2","player1.card3","player1.card4",
+                    "player1.card5","player1.card6","player1.card7","player1.card8"
+                ))::VARCHAR AS deck_key,
+                CASE WHEN "player1.crowns" > "player2.crowns" THEN 1 ELSE 0 END AS win
+            FROM '{CLEAN}'
+        )
+        SELECT deck_key,
+               count(*) AS matches_played,
+               sum(win) AS wins,
+               round(sum(win) * 100.0 / count(*), 1) AS win_rate
+        FROM decks
+        GROUP BY deck_key
+        HAVING count(*) >= {int(min_matches)}
+        ORDER BY win_rate DESC
+        LIMIT 50
     """)
 
-    pdf["deck_key"] = pdf[PLAYER_CARD_COLS].apply(
-        lambda row: build_deck_key([int(x) for x in row.tolist()]), axis=1,
-    )
-    pdf["win"] = (pdf["player1.crowns"] > pdf["player2.crowns"]).astype(int)
-
-    grouped = (
-        pdf.groupby("deck_key", as_index=False)
-        .agg(matches_played=("win", "count"), wins=("win", "sum"))
-    )
-    grouped = grouped[grouped["matches_played"] >= min_matches].copy()
+    if raw.empty:
+        return pd.DataFrame()
 
     records = []
-    for _, row in grouped.iterrows():
+    for _, row in raw.iterrows():
+        try:
+            card_ids = [int(x.strip()) for x in row["deck_key"].strip("[]").split(",")]
+        except Exception:
+            continue
         rec = enrich_deck_record(
-            deck_key=row["deck_key"],
+            deck_key=build_deck_key(card_ids),
             matches_played=int(row["matches_played"]),
             wins=int(row["wins"]),
             name_map=card_name_map,
@@ -341,6 +351,7 @@ def build_top_decks(min_matches: int) -> pd.DataFrame:
         names = [card_name_map.get(cid, str(cid)) for cid in rec["card_ids"]]
         rec["card_names_str"] = " / ".join(names)
         records.append(rec)
+
     result = pd.DataFrame(records)
     return result.sort_values("win_rate", ascending=False).reset_index(drop=True)
 
@@ -380,13 +391,11 @@ else:
         show_df.columns = ["Deck", "Archetype", "Win Rate %", "Matches", "Avg Elixir", "Cycle Cost", "Troops", "Spells", "Buildings"]
         st.dataframe(show_df.reset_index(drop=True), use_container_width=True)
 
-st.caption(
-    "Ranks exact 8-card decks by win rate (or match count). Only decks that meet the "
-    "minimum match threshold are shown, filtering out one-off combinations. Colour "
-    "intensity reflects how many matches a deck was played — darker bars indicate more "
-    "data and therefore more reliable win rates. Expand the table for elixir cost, "
-    "archetype, and card-type breakdowns."
-)
+st.markdown("""
+The highest-performing exact 8-card decks, filtered by minimum matches so win rates are reliable.
+Decks with a high win rate **and** a dark bar (many matches) are the most trustworthy picks.
+A high win rate with few matches could be a fluke. Expand the table for elixir and card-type details.
+""")
 
 st.divider()
 
@@ -418,12 +427,16 @@ fig_elixir_hist.add_vline(
     annotation_text=f"Mean: {overall_mean:.2f}",
 )
 st.plotly_chart(fig_elixir_hist, use_container_width=True)
-st.caption(
-    "Distribution of average elixir cost across all decks (sampled for performance). "
-    "The dashed line marks the overall mean. Most competitive ladder decks cluster "
-    "between 3.0 and 4.0 elixir — decks below this range tend to be fast cycle decks, "
-    "while higher-cost decks are typically beatdown or heavy spell strategies."
-)
+st.markdown("""
+Shows **how expensive most decks are** by average elixir cost. The dashed line is the overall average.
+
+- **< 3.0:** Ultra-fast cycle decks. Quick rotations but fragile troops.
+- **3.0 to 3.8:** The competitive sweet spot. Balanced offence and defence.
+- **3.8 to 4.3:** Heavier decks with strong pushes but slower rotations.
+- **> 4.3:** Beatdown territory (Golem, Lava Hound). Big pushes, high commitment.
+
+If your deck's average elixir is far from the peak, you're running a niche strategy.
+""")
 
 st.divider()
 
