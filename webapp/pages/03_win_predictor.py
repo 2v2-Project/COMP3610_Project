@@ -622,7 +622,6 @@ def main():
     init_deck_builder_state()
     card_df, name_map, type_map, elixir_map, icon_map = load_card_assets()
     metadata_df = load_metadata_df()
-    decks_df = build_all_popular_decks_table()
 
     render_deck_builder(card_df, name_map, type_map, elixir_map, icon_map)
 
@@ -643,6 +642,7 @@ def main():
     if not analyze:
         return
 
+    decks_df = build_all_popular_decks_table()
     p_est = estimate_deck_win_rate(selected_cards, decks_df)
     archetype = detect_archetype(selected_cards, name_map, elixir_map)
     avg_elixir = compute_avg_elixir(selected_cards, elixir_map)
