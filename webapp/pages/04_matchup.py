@@ -33,7 +33,9 @@ from utils.uncertainty import (
     predict_probability_with_xgboost,
 )
 from utils.metadata import get_card_metadata
-from utils.model_loader import load_feature_schema
+from utils.model_loader import load_feature_schema, load_best_model, load_xgboost_model
+from utils.explanation_engine import build_prediction_explanations
+from utils.preprocess import build_feature_vector
 
 st.set_page_config(page_title="Matchup Analysis", layout="wide")
 
@@ -79,6 +81,35 @@ st.markdown(
     .elixir-badge img { width: 13px; height: 13px; }
     .deck-card-wrap { position: relative; display: inline-block; width: 100%; }
     .deck-card-wrap img { border-radius: 10px; width: 100%; }
+    .explanation-box {
+        background: linear-gradient(135deg, #f0f7ff 0%, #e8f2ff 100%);
+        border: 1px solid #c0d8f0;
+        border-left: 4px solid #1a5490;
+        border-radius: 10px;
+        padding: 18px 20px;
+        margin: 12px 0;
+        color: #1a3a6e;
+        font-size: 14px;
+        line-height: 1.7;
+    }
+    .explanation-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 12px;
+        font-weight: 700;
+        font-size: 15px;
+        color: #1a3a6e;
+    }
+    .explanation-bullet {
+        margin: 10px 0;
+        padding: 8px 12px;
+        background: rgba(255, 255, 255, 0.6);
+        border-radius: 8px;
+        border-left: 3px solid #4a90d9;
+        font-size: 14px;
+        line-height: 1.6;
+    }
     </style>
     """,
     unsafe_allow_html=True,
@@ -100,6 +131,7 @@ MIN_MATCHES = 20
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
+@st.cache_data(show_spinner=False, ttl=3600)
 def load_card_assets():
     name_map = get_card_names(force_refresh=False)
     type_map = get_card_types(force_refresh=False)
@@ -120,7 +152,12 @@ def load_card_assets():
     return card_df, name_map, type_map, elixir_map, icon_map
 
 
-@st.cache_data(show_spinner=True)
+@st.cache_data(show_spinner=False, ttl=3600)
+def _load_metadata_df() -> pd.DataFrame:
+    return get_card_metadata(force_refresh=False)
+
+
+@st.cache_data(show_spinner=True, ttl=3600)
 def load_match_data() -> pl.DataFrame:
     for p in DATA_PATHS:
         if p.exists():
@@ -132,7 +169,7 @@ def load_match_data() -> pl.DataFrame:
     raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")
 
 
-@st.cache_data(show_spinner="Building deck key index …")
+@st.cache_data(show_spinner="Building deck key index \u2026", ttl=3600)
 def _keyed_match_data() -> pd.DataFrame:
     """Compute deck keys ONCE and cache. Reused by build_deck_lookup and h2h."""
     df = load_match_data().to_pandas()
@@ -144,7 +181,7 @@ def _keyed_match_data() -> pd.DataFrame:
     return df
 
 
-@st.cache_data(show_spinner=True)
+@st.cache_data(show_spinner=True, ttl=3600)
 def build_deck_lookup(min_matches: int) -> pd.DataFrame:
     """Build grouped deck stats from player-side data."""
     df = _keyed_match_data()
@@ -159,7 +196,7 @@ def build_deck_lookup(min_matches: int) -> pd.DataFrame:
         ["matches_played", "win_rate"], ascending=[False, False]).reset_index(drop=True)
 
 
-@st.cache_data(show_spinner=True)
+@st.cache_data(show_spinner=True, ttl=3600)
 def compute_head_to_head(player_key: str, opponent_key: str) -> dict | None:
     """Look up exact head-to-head stats for two deck keys (uses pre-computed keys)."""
     df = _keyed_match_data()
@@ -220,7 +257,48 @@ def estimate_deck_win_rate(cards: list[int], decks_df: pd.DataFrame) -> dict:
             "source": f"~{len(sdf)} similar decks", "confidence": confidence_from_match_count(tm)}
 
 
+@st.cache_resource(show_spinner=False)
+def _load_model_for_explanations():
+    """Load model and feature schema for explanation generation."""
+    try:
+        model = load_xgboost_model()
+    except Exception:
+        model, _ = load_best_model()
+    schema = load_feature_schema()
+    return model, schema
 
+
+def get_matchup_explanation_bullets(
+    player_cards: list[int],
+    opponent_cards: list[int],
+    metadata_df: pd.DataFrame,
+    player_win_prob: float | None = None,
+) -> list[str]:
+    """Generate explanation bullets for a matchup using the explanation engine."""
+    try:
+        model, feature_schema = _load_model_for_explanations()
+
+        feature_df = build_feature_vector(
+            deck_cards=player_cards,
+            metadata_df=metadata_df,
+            feature_schema=feature_schema,
+            opponent_cards=opponent_cards,
+        )
+
+        if feature_df is None or feature_df.empty:
+            return []
+
+        return build_prediction_explanations(
+            model=model,
+            feature_df=feature_df,
+            metadata_df=metadata_df,
+            player_cards=[int(c) for c in player_cards],
+            opponent_cards=[int(c) for c in opponent_cards],
+            max_bullets=4,
+            player_win_prob=player_win_prob,
+        )
+    except Exception:
+        return []
 
 
 def render_card_image(card_id: int, icon_map: dict, name_map: dict) -> None:
@@ -436,7 +514,7 @@ def main():
 
     # XGBoost-based probability estimate
     try:
-        metadata_df = get_card_metadata(force_refresh=False)
+        metadata_df = _load_metadata_df()
         feature_schema = load_feature_schema()
         player_model_prob = predict_probability_with_xgboost(
             deck_cards=p_cards,
@@ -601,20 +679,37 @@ def main():
 
     st.divider()
 
-    # ── Explanation ─────────────────────────────────────────────────
-    st.subheader("How This Prediction Works")
-    st.markdown(
-        """
-        1. **Individual Meta Win Rates** — Each deck's historical win rate is computed from 
-           exact or similar decks in the dataset (~12.4M matches).
-        2. **Head-to-Head Records** — If these exact two decks have faced each other before, 
-           the direct record is blended into the prediction.
-        3. **Win Probability** — The final probability is a weighted blend of head-to-head 
-           performance and relative meta strength.
-        4. **Advantage Breakdown** — Elixir cost, cycle speed, and card-type composition 
-           are compared to highlight structural advantages.
-        """
+    # ── Matchup Explanation ─────────────────────────────────────────
+    st.subheader("Matchup Analysis")
+
+    metadata_df_expl = _load_metadata_df()
+    explanation_bullets = get_matchup_explanation_bullets(
+        player_cards=p_cards,
+        opponent_cards=o_cards,
+        metadata_df=metadata_df_expl,
+        player_win_prob=player_win_prob,
     )
+
+    if explanation_bullets:
+        bullets_html = "".join(
+            f"<div class='explanation-bullet'>{bullet}</div>"
+            for bullet in explanation_bullets
+        )
+        st.markdown(
+            f"<div class='explanation-box'>"
+            f"<div class='explanation-header'>⚔️ Matchup Breakdown</div>"
+            f"{bullets_html}"
+            f"</div>",
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            "<div class='note-box'>"
+            "Could not generate detailed matchup explanations. "
+            "The prediction is based on each deck's historical performance and model estimates."
+            "</div>",
+            unsafe_allow_html=True,
+        )
 
 
 if __name__ == "__main__":

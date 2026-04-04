@@ -1,5 +1,5 @@
 """
-Task 32: Explainable AI Prediction Engine (ENHANCED)
+Task 32: Explainable AI Prediction Engine
 
 Combines SHAP-based model explanations with rule-based domain knowledge.
 Produces 2-4 explanation bullets per prediction that read like a Clash Royale analyst,
@@ -75,9 +75,9 @@ def _build_maps(metadata_df: pd.DataFrame) -> tuple[dict[int, str], dict[int, in
 
 
 def _has_cards(card_ids: List[int], name_map: dict[int, str], *keywords: str) -> bool:
-    """Check if any card in deck matches any of the keywords."""
+    """Check if any card in deck matches any of the keywords (exact name match)."""
     names = [name_map.get(cid, "").lower() for cid in card_ids]
-    return any(keyword.lower() in card_name for keyword in keywords for card_name in names)
+    return any(keyword.lower() == card_name for keyword in keywords for card_name in names)
 
 
 def _detect_synergy_bullets(card_ids: List[int], name_map: dict[int, str]) -> List[str]:
@@ -174,6 +174,46 @@ def _detect_synergy_bullets(card_ids: List[int], name_map: dict[int, str]) -> Li
     if _has_cards(card_ids, name_map, "tesla") and _has_cards(card_ids, name_map, "miner"):
         bullets.append("Tesla + Miner pairs defensive coverage with consistent chip damage.")
 
+    # Electro Giant combos
+    if _has_cards(card_ids, name_map, "electro giant") and _has_cards(card_ids, name_map, "tornado"):
+        bullets.append("Electro Giant + Tornado pulls units into the Giant's reflect damage for devastating defensive value.")
+
+    if _has_cards(card_ids, name_map, "three musketeers") and _has_cards(card_ids, name_map, "elixir collector"):
+        bullets.append("Three Musketeers + Elixir Collector enables expensive split-lane pushes once elixir advantage builds up.")
+
+    if _has_cards(card_ids, name_map, "pekka") and _has_cards(card_ids, name_map, "electro wizard"):
+        bullets.append("PEKKA + Electro Wizard creates a counterpush that stuns and melts through opposing tanks and support.")
+
+    if _has_cards(card_ids, name_map, "mega knight") and _has_cards(card_ids, name_map, "inferno dragon"):
+        bullets.append("Mega Knight + Inferno Dragon forms a strong defensive-to-counterpush that punishes overcommitment.")
+
+    if _has_cards(card_ids, name_map, "royal hogs") and _has_cards(card_ids, name_map, "earthquake"):
+        bullets.append("Royal Hogs + Earthquake clears defensive buildings and punishes grouped defense for consistent split-lane damage.")
+
+    if _has_cards(card_ids, name_map, "prince") and _has_cards(card_ids, name_map, "dark prince"):
+        bullets.append("Double Prince creates dual-lane charge pressure that's very hard to defend on both sides efficiently.")
+
+    if _has_cards(card_ids, name_map, "sparky") and _has_cards(card_ids, name_map, "goblin giant"):
+        bullets.append("Goblin Giant + Sparky tanks for the Sparky while Spear Goblins add chip — a classic push combo.")
+
+    if _has_cards(card_ids, name_map, "miner") and _has_cards(card_ids, name_map, "bats"):
+        bullets.append("Miner + Bats is an efficient chip combination that forces spell responses or deals punishing tower damage.")
+
+    if _has_cards(card_ids, name_map, "ram rider") and _has_cards(card_ids, name_map, "bandit"):
+        bullets.append("Ram Rider + Bandit punish opponents at the bridge with fast, aggressive pressure and snare control.")
+
+    if _has_cards(card_ids, name_map, "goblin barrel") and _has_cards(card_ids, name_map, "rocket"):
+        bullets.append("Goblin Barrel + Rocket combines bait pressure with a heavy spell finisher for closing out tight matches.")
+
+    if _has_cards(card_ids, name_map, "lava hound") and _has_cards(card_ids, name_map, "skeleton dragons"):
+        bullets.append("Lava Hound + Skeleton Dragons stacks aerial splash behind the tank, cleaning up ground swarms on defense.")
+
+    if _has_cards(card_ids, name_map, "elite barbarians") and _has_cards(card_ids, name_map, "rage"):
+        bullets.append("Elite Barbarians + Rage creates sudden burst pressure that can catch opponents off guard at the bridge.")
+
+    if _has_cards(card_ids, name_map, "giant") and _has_cards(card_ids, name_map, "sparky"):
+        bullets.append("Giant + Sparky forces opponents to hold a reset card or risk massive damage from the charged shot.")
+
     return bullets
 
 
@@ -230,6 +270,138 @@ def _detect_matchup_interactions(
 
     if _has_cards(player_cards, name_map, "balloon") and _has_cards(opponent_cards, name_map, "balloon"):
         bullets.append("This Balloon mirror matchup will depend heavily on air defense and spell timing.")
+
+    # Reset mechanics vs Inferno
+    if any(card in opponent_names for card in ["inferno tower", "inferno dragon"]) and \
+       any(card in player_names for card in ["zap", "electro wizard", "electro spirit", "electro dragon", "lightning"]):
+        bullets.append("You have reset tools against the opponent's Inferno, which reduces its threat to your pushes.")
+
+    # PEKKA vs opponent tanks
+    if "pekka" in player_names and any(card in opponent_names for card in ["golem", "giant", "electro giant", "royal giant", "mega knight"]):
+        bullets.append("Your PEKKA directly counters the opponent's tank, giving you a strong defensive anchor in this matchup.")
+
+    if "pekka" in opponent_names and any(card in player_names for card in ["golem", "giant", "electro giant"]):
+        bullets.append("Opponent's PEKKA can shut down your tank — you may need to split push or outplay with timing.")
+
+    # Earthquake vs buildings
+    if "earthquake" in player_names and any(card in opponent_names for card in ["inferno tower", "tesla", "cannon", "bomb tower", "x-bow", "mortar"]):
+        bullets.append("Your Earthquake directly threatens the opponent's buildings, removing key defensive structures.")
+
+    # Royal Giant vs Siege
+    if "royal giant" in player_names and any(card in opponent_names for card in ["x-bow", "mortar"]):
+        bullets.append("Royal Giant outranges siege buildings, giving you a natural advantage in this matchup.")
+
+    if any(card in player_names for card in ["x-bow", "mortar"]) and "royal giant" in opponent_names:
+        bullets.append("Royal Giant outranges your siege building — this is a traditionally difficult matchup you'll need to outplay.")
+
+    # Log vs Goblin Barrel
+    if any(card in player_names for card in ["the log", "barbarian barrel"]) and "goblin barrel" in opponent_names:
+        bullets.append("Your log-type spell cleanly counters Goblin Barrel, which weakens their primary bait threat.")
+
+    if "goblin barrel" in player_names and not any(card in opponent_names for card in ["the log", "barbarian barrel", "tornado"]):
+        bullets.append("Opponent lacks a clean answer to Goblin Barrel, which gives your bait strategy extra value.")
+
+    # Win condition vs no building
+    player_wc = any(card in player_names for card in ["hog rider", "ram rider", "battle ram", "royal hogs"])
+    opp_has_building = any(card in opponent_names for card in ["inferno tower", "tesla", "cannon", "bomb tower", "goblin cage", "tombstone"])
+    if player_wc and not opp_has_building:
+        bullets.append("Opponent has no building to pull your win condition, which should allow more direct tower connections.")
+
+    # Rocket vs high-value targets
+    if "rocket" in player_names and any(card in opponent_names for card in ["x-bow", "sparky", "elixir collector", "three musketeers"]):
+        bullets.append("Your Rocket can eliminate key high-value targets in the opponent's deck for strong elixir trades.")
+
+    return bullets[:3]
+
+
+# ── Archetype matchup dynamics ──────────────────────────────────────
+
+_ARCHETYPE_DYNAMICS: Dict[tuple[str, str], str] = {
+    ("Beatdown", "Siege"): "Beatdown typically overwhelms Siege — heavy tanks can absorb siege damage while support troops break through.",
+    ("Siege", "Beatdown"): "Siege often struggles against Beatdown since heavy tanks absorb building damage and support troops push through.",
+    ("Cycle", "Beatdown"): "Cycle decks can exploit Beatdown's slow buildup by pressuring opposite lane and chipping before big pushes develop.",
+    ("Beatdown", "Cycle"): "Beatdown needs to survive early chip pressure and build a decisive push in double elixir to overwhelm Cycle defense.",
+    ("Bait", "Control"): "Bait tests Control's spell discipline — if they waste their small spell, Goblin Barrel gets full value.",
+    ("Control", "Bait"): "Control needs perfect spell management against Bait — saving the right spell for Goblin Barrel is critical.",
+    ("Bridge Spam", "Beatdown"): "Bridge Spam can punish Beatdown's heavy elixir investments by rushing the opposite lane before pushes build.",
+    ("Beatdown", "Bridge Spam"): "Beatdown must defend Bridge Spam pressure patiently and find windows to build up in double elixir.",
+    ("Cycle", "Control"): "Cycle outpaces Control through fast rotations, but Control's defensive answers can absorb repeated chip pressure.",
+    ("Control", "Cycle"): "Control should focus on maximum spell value and avoid being outcycled by the opponent's faster rotation.",
+    ("Loon", "Cycle"): "Balloon decks need to catch Cycle out of rotation — relying on spell support or freeze timing to connect.",
+    ("Cycle", "Loon"): "Cycle decks can often defend Balloon with fast rotations and punish with opposite-lane counterpressure.",
+    ("Graveyard", "Beatdown"): "Graveyard's chip damage races against Beatdown's massive pushes — it's a tempo-dependent matchup.",
+    ("Bait", "Bridge Spam"): "Both decks apply constant pressure — elixir management and defensive timing usually decide the outcome.",
+    ("Siege", "Cycle"): "Siege vs Cycle is a battle of patience — Cycle can outcycle Siege defenses, but Siege chips from a distance.",
+    ("Beatdown", "Graveyard"): "Beatdown's heavy pushes can overwhelm the defensive tools Graveyard decks rely on to stay alive.",
+    ("Bridge Spam", "Siege"): "Bridge Spam can punish Siege setups with fast pressure before the defensive structure locks in.",
+    ("Siege", "Bridge Spam"): "Siege must defend bridge pressure efficiently and find windows to lock an X-Bow or Mortar at the bridge.",
+    ("Loon", "Bait"): "Balloon decks often carry enough splash to handle Bait's swarms, while Bait may lack strong anti-air.",
+    ("Bait", "Loon"): "Bait decks may struggle to defend Balloon consistently without dedicated air-targeting units.",
+    ("Miner Control", "Beatdown"): "Miner Control chips away while defending Beatdown's big pushes — patience and defensive timing are key.",
+    ("Beatdown", "Miner Control"): "Beatdown must build overwhelming pushes to break through Miner Control's defensive framework.",
+    ("Sparky", "Cycle"): "Sparky decks can be outcycled, as fast rotation lets the opponent always have a counter ready for the charged shot.",
+    ("Cycle", "Sparky"): "Cycle's fast rotation helps ensure you always have a reset or distraction ready for the opponent's Sparky.",
+}
+
+
+def _archetype_matchup_bullet(player_arch: str, opponent_arch: str) -> Optional[str]:
+    """Return a strategic insight about the archetype matchup, if known."""
+    if player_arch == "Unknown" or opponent_arch == "Unknown":
+        return None
+    return _ARCHETYPE_DYNAMICS.get((player_arch, opponent_arch))
+
+
+def _detect_vulnerabilities(
+    card_ids: List[int],
+    name_map: dict[int, str],
+    elixir_map: dict[int, int],
+    type_map: dict[int, str],
+) -> List[str]:
+    """
+    Detect structural weaknesses in a deck.
+
+    Returns up to 2 vulnerability bullets.
+    """
+    bullets: List[str] = []
+    names = {name_map.get(cid, "").lower() for cid in card_ids if cid in name_map}
+
+    # No win condition
+    win_conditions = {"hog rider", "miner", "balloon", "golem", "giant", "royal giant",
+                      "electro giant", "lava hound", "x-bow", "mortar", "graveyard",
+                      "goblin barrel", "wall breakers", "ram rider", "battle ram",
+                      "royal hogs", "three musketeers", "sparky", "mega knight",
+                      "pekka", "prince", "elite barbarians"}
+    if not names & win_conditions:
+        bullets.append("This deck may lack a clear win condition, which can make it difficult to consistently deal tower damage.")
+
+    # No big spell
+    big_spells = {"fireball", "poison", "rocket", "lightning"}
+    if not names & big_spells:
+        bullets.append("No heavy spell means limited ability to finish damaged towers or remove medium-health support troops.")
+
+    # No air defense
+    air_defense = {"archers", "musketeer", "hunter", "wizard", "executioner",
+                   "baby dragon", "inferno dragon", "electro dragon", "mega minion",
+                   "minions", "minion horde", "tesla", "inferno tower", "bats",
+                   "skeleton dragons", "firecracker", "electro wizard", "dart goblin"}
+    if not names & air_defense:
+        bullets.append("This deck appears light on air defense, which leaves it vulnerable to Balloon, Lava Hound, and other air threats.")
+
+    # No building
+    buildings = {"inferno tower", "tesla", "cannon", "bomb tower", "goblin cage",
+                 "tombstone", "furnace", "elixir collector", "barbarian hut"}
+    has_building = bool(names & buildings)
+    # Only flag if deck uses ground win conditions that benefit from buildings for pulling
+    if not has_building and not names & {"x-bow", "mortar"}:
+        ground_threats_exist = bool(names & {"hog rider", "ram rider", "battle ram", "royal hogs"})
+        if not ground_threats_exist:
+            # deck doesn't need to pull things, but no building still matters
+            pass  # skip - not every deck needs a building
+
+    # Very heavy with no pump
+    avg = compute_avg_elixir(card_ids, elixir_map)
+    if avg >= 4.5 and "elixir collector" not in names:
+        bullets.append("Very high average elixir without Elixir Collector means slower starts and risk of being overwhelmed early.")
 
     return bullets[:2]
 
@@ -310,6 +482,11 @@ def _rule_based_bullets(
         if synergies:
             bullets.append(synergies[0])
 
+        # Vulnerability detection for single-deck analysis
+        vulnerabilities = _detect_vulnerabilities(player_cards, name_map, elixir_map, type_map)
+        if vulnerabilities:
+            bullets.append(vulnerabilities[0])
+
     else:
         opp_avg = compute_avg_elixir(opponent_cards, elixir_map)
         opp_cycle = compute_cycle_cost(opponent_cards, elixir_map)
@@ -318,9 +495,13 @@ def _rule_based_bullets(
         elixir_diff = round(player_avg - opp_avg, 2)
 
         if player_archetype != "Unknown" and opp_archetype != "Unknown":
-            bullets.append(
-                f"{player_archetype} versus {opp_archetype} changes the matchup because these strategies pressure each other differently."
-            )
+            arch_insight = _archetype_matchup_bullet(player_archetype, opp_archetype)
+            if arch_insight:
+                bullets.append(arch_insight)
+            else:
+                bullets.append(
+                    f"{player_archetype} versus {opp_archetype} changes the matchup because these strategies pressure each other differently."
+                )
 
         if abs(elixir_diff) >= 0.3:
             if elixir_diff < 0:
@@ -363,14 +544,28 @@ def _humanize_shap_feature(feature_name: str, metadata_df: pd.DataFrame) -> tupl
             card_name = name_map.get(card_id, f"card {card_id}")
             card_lower = card_name.lower()
 
-            if any(x in card_lower for x in ["hog", "miner", "wall breakers", "balloon", "graveyard"]):
-                context = "it acts as a core win condition in the deck"
-            elif any(x in card_lower for x in ["inferno", "tesla", "cannon"]):
-                context = "it improves the deck's defensive control"
-            elif any(x in card_lower for x in ["poison", "fireball", "tornado", "rocket"]):
-                context = "it improves spell control and removal options"
+            if any(x in card_lower for x in ["hog", "miner", "wall breakers", "balloon", "graveyard", "ram rider", "royal hogs"]):
+                context = "it serves as the deck's primary win condition for dealing tower damage"
+            elif any(x in card_lower for x in ["golem", "giant", "lava hound", "electro giant"]):
+                context = "it acts as the deck's tank, absorbing damage and enabling support troops to deal damage"
+            elif any(x in card_lower for x in ["inferno", "tesla", "cannon", "bomb tower"]):
+                context = "it anchors the deck's defense against enemy pushes"
+            elif any(x in card_lower for x in ["poison", "fireball", "tornado", "rocket", "lightning"]):
+                context = "it provides crucial spell control and area denial"
+            elif any(x in card_lower for x in ["zap", "the log", "snowball", "barbarian barrel"]):
+                context = "it's a key small spell for resetting, finishing, or countering swarms"
+            elif any(x in card_lower for x in ["skeletons", "ice spirit", "electro spirit", "bats"]):
+                context = "it's a cheap cycle card that keeps rotation fast and efficient"
+            elif any(x in card_lower for x in ["mega knight", "pekka", "sparky"]):
+                context = "it creates high-threat counterpushes that demand an immediate response"
+            elif any(x in card_lower for x in ["musketeer", "wizard", "executioner", "hunter"]):
+                context = "it provides ranged support and helps control air and ground threats"
+            elif any(x in card_lower for x in ["valkyrie", "knight", "ice golem"]):
+                context = "it acts as a mini-tank that absorbs damage and supports offensive pushes"
+            elif any(x in card_lower for x in ["princess", "dart goblin", "firecracker"]):
+                context = "it applies chip pressure at range and baits out spell responses"
             else:
-                context = "it is an important part of the deck's structure"
+                context = "it contributes meaningfully to the deck's overall strategy"
 
             return (card_name, context)
         except Exception:
@@ -477,10 +672,14 @@ def build_prediction_explanations(
     player_cards: List[int],
     opponent_cards: Optional[List[int]] = None,
     max_bullets: int = 4,
+    player_win_prob: Optional[float] = None,
     debug: bool = False,
 ) -> List[str]:
     """
     Build 2-4 explanation bullets blending SHAP, rule-based signals, and matchup interactions.
+
+    When player_win_prob is provided for matchup mode, explanations are framed
+    around whether the player is favored or at a disadvantage.
     """
     if max_bullets < 2 or max_bullets > 4:
         raise ValueError("max_bullets must be between 2 and 4")
@@ -516,7 +715,7 @@ def build_prediction_explanations(
         if debug:
             logger.debug("Matchup interaction bullets (%s): %s", len(matchup_interactions), matchup_interactions)
 
-    merged = _dedupe_preserve_order(shap_part + rules_part + matchup_interactions)
+    merged = _dedupe_preserve_order(rules_part + matchup_interactions + shap_part)
     result = merged[:max_bullets]
 
     if len(result) < 2:
@@ -524,6 +723,34 @@ def build_prediction_explanations(
             result.append("This deck's card choices and elixir profile strongly influence its expected performance.")
         if len(result) < 2:
             result.append("The prediction also depends on how well the deck's structure supports its main strategy.")
+
+    # Add loss/win framing for matchup mode when win probability is known
+    if player_win_prob is not None and opponent_cards:
+        name_map, elixir_map, _ = _build_maps(metadata_df)
+        player_archetype = detect_archetype(player_cards, name_map, elixir_map)
+        opp_archetype = detect_archetype(opponent_cards, name_map, elixir_map)
+
+        if player_win_prob < 40:
+            if opp_archetype != "Unknown":
+                framing = (
+                    f"Overall, the opponent's {opp_archetype} deck holds a structural advantage "
+                    f"in this matchup — outplays and smart elixir management would be needed to win."
+                )
+            else:
+                framing = (
+                    "Overall, the opponent's deck holds a structural advantage here — "
+                    "you'd need to outplay on key interactions and manage elixir carefully to win."
+                )
+            result.append(framing)
+        elif player_win_prob > 60:
+            if player_archetype != "Unknown":
+                framing = (
+                    f"Overall, your {player_archetype} deck is well-positioned to win this matchup "
+                    f"if you play to its strengths."
+                )
+            else:
+                framing = "Overall, your deck has a clear structural edge in this matchup."
+            result.append(framing)
 
     if debug:
         logger.debug("Final bullets (%s): %s", len(result), result)
