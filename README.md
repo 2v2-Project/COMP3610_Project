@@ -1,20 +1,84 @@
-# COMP3610_Project
+# Clash Royale Analytics Engine
+
+> COMP 3610 — Big Data Analytics Project
+
+A data-driven esports analytics platform that analyses 12.4 M+ Clash Royale
+ladder matches, predicts match outcomes with XGBoost, and surfaces strategic
+insights through an interactive Streamlit dashboard.
+
+## Project Structure
+
+```
+├── data/
+│   ├── raw/                 # Daily match CSVs (Oct 2–11, 2023)
+│   ├── processed/           # Cleaned parquets, feature matrices, metadata
+│   └── outputs/             # Exploratory analysis plots
+├── scr/                     # Data pipeline & model training scripts
+│   ├── 01_load_data.py            # Load & benchmark raw CSVs
+│   ├── 02_preprocess_clash_royale_data.py  # Clean, deduplicate, create target
+│   ├── 03_build_deck_feature_matrices.py   # Card one-hot & elixir features
+│   ├── 04_analyze_common_cards.py          # (exploratory) card frequency plots
+│   ├── 05_analyze_win_rates.py             # (exploratory) win-rate analysis
+│   ├── 06_archetype_synergy_features.py    # Archetype & synergy features
+│   ├── 07_matchup_features.py              # Cross-deck matchup features
+│   ├── 08_assemble_final_ml_dataset.py     # Merge all features → final dataset
+│   ├── 09_train_logistic_regression.py     # (experiment) Logistic Regression
+│   ├── 10_train_random_forest.py           # (experiment) Random Forest
+│   ├── 11_tune_random_forest.py            # (experiment) Tuned Random Forest
+│   ├── 12_train_xgboost.py                # (experiment) XGBoost with CV tuning
+│   ├── 13_train_final.py                  # Final XGBoost training → deployed model
+│   └── utils/
+│       └── metadata_utils.py              # RoyaleAPI card metadata fetcher
+├── models/
+│   ├── xgboost_model.joblib   # Deployed XGBoost model
+│   ├── columns.json           # Feature schema (column order)
+│   └── xgboost_metrics.json   # Evaluation metrics
+├── webapp/
+│   ├── app.py                 # Streamlit home page
+│   ├── pages/
+│   │   ├── 01_overview.py         # Dataset dashboard
+│   │   ├── 02_popular_decks.py    # Top deck browser
+│   │   ├── 03_win_predictor.py    # ML win probability predictor
+│   │   ├── 04_matchup.py          # Deck vs deck matchup analysis
+│   │   ├── 05_trends.py           # Meta trends & card usage over time
+│   │   ├── 06_archetype_insights.py # Archetype heatmaps & SHAP
+│   │   ├── 07_game_theory.py      # Payoff matrices & Nash equilibrium
+│   │   └── 08_recommendations.py  # Deck & card-swap suggestions
+│   ├── static/                # Banner images
+│   └── utils/                 # Shared webapp utilities
+│       ├── metadata.py            # RoyaleAPI integration & card metadata
+│       ├── model_loader.py        # Model & schema loading
+│       ├── preprocess.py          # Feature vector construction
+│       ├── deck_helpers.py        # Deck key, archetype, elixir helpers
+│       ├── explanation_engine.py  # SHAP + rule-based prediction explanations
+│       ├── shap_utils.py          # SHAP explainer wrappers
+│       ├── uncertainty.py         # Confidence / uncertainty estimation
+│       ├── recommendation.py      # Card-swap & deck ranking
+│       ├── prediction.py          # Prediction wrappers
+│       ├── data_loader.py         # Cached data loading utilities
+│       └── ui_helpers.py          # CSS & UI component helpers
+├── requirements.txt
+└── README.md
+```
 
 ## Dataset
 
-This project uses the Clash Royale Games dataset from Kaggle:
+This project uses the [Clash Royale Games](https://www.kaggle.com/datasets/s1m0n38/clash-royale-games) dataset from Kaggle.
 
-https://www.kaggle.com/datasets/s1m0n38/clash-royale-games
+- **Time Period:** October 2–11, 2023
+- **Match Type:** Ladder matches (4,000 + trophies)
+- **Scale:** ~12.4 million matches, 107 unique cards, 3.6 M+ unique players
 
-To reproduce results:
+Card metadata (names, elixir costs, types, icons) is enriched via the
+[RoyaleAPI](https://royaleapi.github.io/cr-api-data/json/cards.json) data endpoint.
+
+To reproduce:
 
 1. Download the dataset from Kaggle.
 2. Extract the archive.
-3. Place selected daily CSV files in `data/raw/`.
+3. Place the daily CSV files (`20231002.csv` – `20231011.csv`) into `data/raw/`.
 
 ## Setup
-
-Run from project root:
 
 ```powershell
 # 1) Create virtual environment (once)
@@ -23,28 +87,14 @@ python -m venv .venv
 # 2) Activate
 .\.venv\Scripts\Activate.ps1
 
-# 3) Upgrade pip
+# 3) Install dependencies
 python -m pip install --upgrade pip
-
-# 4) Install dependencies
 python -m pip install -r requirements.txt
 ```
 
-## Quick Sanity Checks
+## Data Pipeline
 
-```powershell
-python -c "import pandas, polars, duckdb, pyarrow; print('deps ok')"
-python -m py_compile scr\01_load_data.py
-python -m py_compile scr\02_preprocess_clash_royale_data.py
-python -m py_compile scr\03_build_deck_feature_matrices.py
-python -m py_compile scr\06_archetype_synergy_features.py
-python -m py_compile scr\07_matchup_features.py
-python -m py_compile scr\08_assemble_final_ml_dataset.py
-```
-
-## End-to-End Run (All Core Phases)
-
-Run the pipeline in this order:
+Run the core pipeline in order:
 
 ```powershell
 python scr\01_load_data.py
@@ -53,150 +103,108 @@ python scr\03_build_deck_feature_matrices.py
 python scr\06_archetype_synergy_features.py
 python scr\07_matchup_features.py
 python scr\08_assemble_final_ml_dataset.py
-
-python scr/11_tune_random_forest.py --sample-size 200000 --cv 2 --n-iter 6
 ```
 
-Optional analysis scripts (not required for final dataset assembly):
+Optional exploratory analysis (generates plots in `data/outputs/`):
 
 ```powershell
 python scr\04_analyze_common_cards.py
 python scr\05_analyze_win_rates.py
 ```
 
-## Expected Outputs (data/processed)
+### Expected Outputs (`data/processed/`)
 
-Core preprocessing and feature outputs:
+| File | Description |
+|------|-------------|
+| `clash_royale_clean.csv` / `.parquet` | Cleaned match data |
+| `load_benchmark.csv` | Load-time benchmarks |
+| `card_list.csv` | Unique card IDs |
+| `card_metadata.csv` / `card_metadata_raw.json` | API-sourced card metadata |
+| `player_card_feature_matrix.parquet` | Player 1 card one-hot features |
+| `opponent_card_feature_matrix.parquet` | Player 2 card one-hot features |
+| `deck_elixir_features.parquet` | Elixir cost features per deck |
+| `archetype_features.parquet` | Detected archetype labels |
+| `synergy_features.parquet` | Card synergy scores |
+| `archetype_synergy_features.parquet` | Combined archetype + synergy |
+| `matchup_features.parquet` | Cross-deck matchup features |
+| `opponent_elixir_features.parquet` | Opponent elixir features |
+| `matchup_deck_diff_features.parquet` | Pairwise deck difference features |
+| `final_ml_dataset.parquet` | Merged ML-ready dataset (305 columns) |
+| `clean_training_dataset.parquet` | Quality-checked training set |
+| `final_dataset_quality_report.json` | Dataset quality report |
 
-- `clash_royale_clean.csv`
-- `clash_royale_clean.parquet`
-- `load_benchmark.csv`
-- `card_list.csv`
-- `card_metadata.csv`
-- `player_card_feature_matrix.parquet`
-- `opponent_card_feature_matrix.parquet`
-- `deck_elixir_features.parquet`
-- `archetype_features.parquet`
-- `synergy_features.parquet`
-- `archetype_synergy_features.parquet`
-- `matchup_features.parquet`
-- `opponent_elixir_features.parquet`
-- `matchup_deck_diff_features.parquet`
-- `final_ml_dataset.parquet`
-- `clean_training_dataset.parquet`
-- `final_dataset_quality_report.json`
-
-Verify outputs:
-
-```powershell
-Get-ChildItem -Path data/processed | Select-Object Name,Length
-```
-## Model Evaluation 
 ## Model Training and Selection
 
-This project evaluated multiple machine learning models to predict match outcomes based on gameplay features derived from a large dataset (~13.5 million rows).
+Multiple models were trained and compared on a 500,000-row sample:
 
-## Models Evaluated
+| Model | Accuracy | F1 Score | ROC-AUC |
+|-------|----------|----------|---------|
+| Logistic Regression | 0.547 | 0.590 | 0.574 |
+| Random Forest | 0.564 | 0.563 | 0.591 |
+| Tuned Random Forest | 0.568 | 0.514 | 0.596 |
+| **XGBoost** | **0.590** | **0.564** | **0.626** |
 
-The following models were trained and compared on a consistent 500,000-row sample:
+XGBoost was selected as the deployed model based on the best ROC-AUC
+(+3.4 pp over Random Forest), which is the primary metric for
+probabilistic ranking quality.
 
-Logistic Regression
-Random Forest (manually configured)
-Tuned Random Forest (RandomizedSearchCV)
+Training scripts `09`–`12` document the model selection experiments.
+The final deployed model is produced by `13_train_final.py`.
 
-Results Summary
-Model	Accuracy	F1 Score	ROC-AUC
-Logistic Regression	0.547	0.590	0.574
-Random Forest	0.564	0.563	0.591
-Tuned Random Forest	0.568	0.514	0.596
+### Final Model (XGBoost)
 
-## Model Selection
-
-Although Logistic Regression achieved the highest F1 score and the tuned Random Forest achieved the highest ROC-AUC, the baseline Random Forest model was selected for deployment.
-
-This decision was based on:
-
-strong overall performance across all metrics
-balanced classification capability (precision vs recall)
-stability compared to the tuned model
-ability to capture nonlinear relationships in the data
-
-The tuned model improved ROC-AUC slightly but significantly reduced F1 score, indicating poorer classification balance.
-
-## Final Model Training
-
-The selected XGBoost was retrained using a 1,000,000-row sample, which represented the largest dataset size that could be processed reliably within local hardware constraints.
-
-Final Performance
-Accuracy: 0.5827
-F1 Score: 0.5545
-ROC-AUC: 0.6154
-These results were consistent with earlier experiments, indicating stable model behavior.
-
-## Saved Artifacts
-
-The final trained models and required metadata were saved for deployment:
-
-```
-models/
-├── random_forest.pkl           # serialized Random Forest model
-├── xgboost_model.joblib        # serialized XGBoost model
-├── columns.json                # feature schema (column order)
-├── random_forest_metrics.json  # RF evaluation metrics
-└── xgboost_metrics.json        # XGBoost evaluation metrics
-```
-
-### Setup
-
-XGBoost is already listed in `requirements.txt`. If it is not installed yet:
+Trained on a 1,000,000-row stratified sample with fixed hyper-parameters
+selected from prior RandomizedSearchCV tuning:
 
 ```powershell
-python -m pip install xgboost==2.1.4
+python scr\13_train_final.py
 ```
 
-### Run
+| Metric   | Value |
+|----------|-------|
+| Accuracy | 0.587 |
+| F1 Score | 0.559 |
+| ROC-AUC  | 0.621 |
+
+**Note:** The moderate ROC-AUC reflects that deck composition alone is a
+limited predictor of match outcomes — player skill, card levels, and
+in-match decisions are not captured in this dataset.
+
+### Saved Artifacts (`models/`)
+
+| File | Description |
+|------|-------------|
+| `xgboost_model.joblib` | Deployed XGBoost model |
+| `columns.json` | Feature schema (column order for inference) |
+| `xgboost_metrics.json` | Evaluation metrics |
+
+## Web Application
+
+An 8-page Streamlit dashboard for interactive exploration:
+
+| Page | Description |
+|------|-------------|
+| **Overview** | Key dataset statistics, trophy distributions, win/loss breakdown |
+| **Popular Decks** | Most-played decks with archetype, confidence, and elixir filters |
+| **Win Predictor** | Build a deck → ML win probability with SHAP explanations |
+| **Matchup Analysis** | Deck vs deck prediction with feature-level breakdown |
+| **Trends** | Card usage trends, archetype distribution, meta evolution |
+| **Archetype Insights** | Archetype vs archetype win-rate heatmaps, SHAP importance |
+| **Game Theory** | Payoff matrices, Nash equilibrium, dominant strategy analysis |
+| **Recommendations** | Card-swap suggestions and top historical deck rankings |
+
+### Run the App
 
 ```powershell
-python scr\13_train_xgboost.py
+cd webapp
+streamlit run app.py
 ```
 
-This will:
-1. Load `data/processed/final_ml_dataset.parquet`
-2. Sample 1,000,000 rows (seed 42)
-3. Split 80/20 stratified
-4. Run 12-iteration RandomizedSearchCV (3-fold CV) for light hyper-parameter tuning
-5. Evaluate on the hold-out set
-6. Save model, feature schema, and metrics to `models/`
+### Key Features
 
-### XGBoost Performance
-
-| Metric   | XGBoost | Random Forest | Logistic Reg |
-|----------|---------|---------------|-------------|
-| Accuracy | **0.5897** | 0.5642     | 0.547       |
-| F1 Score | **0.5636** | 0.5626     | 0.590       |
-| ROC-AUC  | **0.6256** | 0.5915     | 0.574       |
-
-XGBoost improves ROC-AUC by +3.4 pp over Random Forest, which is the
-primary metric for probabilistic ranking quality.
-
-### Best Hyper-parameters Found
-
-| Parameter         | Value |
-|-------------------|-------|
-| n_estimators      | 300   |
-| max_depth         | 8     |
-| learning_rate     | 0.1   |
-| subsample         | 1.0   |
-| colsample_bytree  | 0.6   |
-| reg_lambda        | 5     |
-| gamma             | 0.1   |
-| min_child_weight  | 1     |
-| reg_alpha         | 0.1   |
-Why the Feature Schema is Saved
-
-The model expects input features in a specific order.
-The columns.json file ensures that:
-
-input data is aligned correctly during inference
-missing features can be handled safely
-predictions remain consistent between training and deployment
+- **XGBoost predictions** with uncertainty estimation and confidence labels
+- **SHAP explanations** for individual predictions (local feature importance)
+- **Game theory analysis** — archetypes as strategies, Nash equilibrium computation
+- **RoyaleAPI integration** for card metadata, icons, and enrichment
+- **DuckDB** for fast analytical queries over 12 M+ row parquet files
+- **Deck recommendation engine** with model-scored card swaps
