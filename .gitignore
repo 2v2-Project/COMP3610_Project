@@ -198,6 +198,29 @@ cython_debug/
 #  Cursor is an AI-powered code editor. `.cursorignore` specifies files/directories to
 #  exclude from AI features like autocomplete and code analysis. Recommended for sensitive data
 #  refer to https://docs.cursor.com/context/ignore-files
+
+# ── Project: raw data & generated outputs ──
+data/raw/
+data/outputs/
+
+# ── Project: intermediate pipeline artifacts in data/processed/ ──
+data/processed/clash_royale_clean.csv
+data/processed/clean_training_dataset.parquet
+data/processed/archetype_synergy_features.parquet
+data/processed/archetype_synergy_sample.csv
+data/processed/matchup_features.parquet
+data/processed/matchup_deck_diff_features.parquet
+data/processed/opponent_card_feature_matrix.parquet
+data/processed/opponent_elixir_features.parquet
+data/processed/player_card_feature_matrix.parquet
+data/processed/synergy_features.parquet
+data/processed/card_list.csv
+data/processed/load_benchmark.csv
+data/processed/final_dataset_quality_report.json
+
+# ── Project: redundant / optional model artifacts ──
+models/xgboost_model.pkl
+models/xgboost_metrics.json
 .cursorignore
 .cursorindexingignore
 
@@ -206,11 +229,23 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 
-# Data
-data/
-*.csv
+# Data — ignore bulk files, keep deployment essentials
+# Step 1: ignore the data folder's contents (not the folder itself)
+data/*
 *.zip
-*.json
+
+# Step 2: allow the processed subdirectory to be traversed
+!data/processed/
+
+# Step 3: ignore everything inside processed by default
+data/processed/*
+
+# Step 4: whitelist only the small files the Streamlit app needs
+!data/processed/card_rankings.parquet
+!data/processed/card_rankings.csv
+!data/processed/card_metadata.csv
+!data/processed/card_metadata_raw.json
+!data/processed/card_list.csv
 
 # macOS
 .DS_Store
@@ -228,6 +263,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Model artifacts
+# Model artifacts — ignore bulk, keep deployment essentials
 *.pkl
-models/
+models/*
+!models/xgboost_model.joblib
+!models/xgboost_metrics.json
+!models/columns.json

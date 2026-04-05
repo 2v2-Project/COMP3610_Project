@@ -40,6 +40,7 @@ from utils.preprocess import build_feature_vector
 st.set_page_config(page_title="Matchup Analysis", layout="wide")
 
 from utils.ui_helpers import inject_fonts
+from utils.data_loader import load_card_rankings
 
 inject_fonts()
 
@@ -590,6 +591,26 @@ def main():
 
     render_confidence(confidence)
     st.caption("Confidence reflects the amount of historical data supporting this matchup estimate.")
+
+    # ── Meta card count badges ──────────────────────────────────────
+    rankings_df = load_card_rankings()
+    if rankings_df is not None and not rankings_df.empty:
+        top20_names = set(rankings_df.head(20)["card_name"])
+        p_names = [name_map.get(int(c), "") for c in p_cards]
+        o_names = [name_map.get(int(c), "") for c in o_cards]
+        p_meta = sum(1 for n in p_names if n in top20_names)
+        o_meta = sum(1 for n in o_names if n in top20_names)
+        mc1, mc2 = st.columns(2)
+        mc1.markdown(
+            f"<div class='note-box'>🔥 Player deck contains <strong>{p_meta}</strong> "
+            f"top meta card(s)</div>",
+            unsafe_allow_html=True,
+        )
+        mc2.markdown(
+            f"<div class='note-box'>🔥 Opponent deck contains <strong>{o_meta}</strong> "
+            f"top meta card(s)</div>",
+            unsafe_allow_html=True,
+        )
 
     st.divider()
 

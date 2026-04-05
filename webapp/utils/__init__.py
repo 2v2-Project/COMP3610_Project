@@ -11,6 +11,7 @@ from .data_loader import (
     load_archetype_stats,
     load_popular_decks,
     load_historical_trends,
+    load_card_rankings,
 )
 
 from .model_loader import (

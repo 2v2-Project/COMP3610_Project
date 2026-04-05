@@ -39,6 +39,7 @@ from utils.model_loader import load_best_model, load_feature_schema, load_xgboos
 from utils.preprocess import build_feature_vector
 from utils.explanation_engine import build_prediction_explanations
 from utils.ui_helpers import inject_fonts
+from utils.data_loader import load_card_rankings
 
 logger = logging.getLogger(__name__)
 
@@ -717,6 +718,19 @@ def main():
 
     render_confidence(confidence)
     st.caption(f"Based on: {probability_source}")
+
+    # ── Meta card count badge ───────────────────────────────────────
+    rankings_df = load_card_rankings()
+    if rankings_df is not None and not rankings_df.empty:
+        top20_names = set(rankings_df.head(20)["card_name"])
+        selected_names = [name_map.get(int(c), "") for c in selected_cards]
+        meta_count = sum(1 for n in selected_names if n in top20_names)
+        st.markdown(
+            f"<div class='note-box' style='margin-top:8px;'>"
+            f"🔥 This deck contains <strong>{meta_count}</strong> top meta card(s) "
+            f"(out of the 20 most-used cards in the current meta).</div>",
+            unsafe_allow_html=True,
+        )
 
     st.divider()
     st.subheader("Why This Prediction Makes Sense")
