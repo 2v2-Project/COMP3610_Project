@@ -27,6 +27,7 @@ insights through an interactive Streamlit dashboard.
 │   ├── 11_tune_random_forest.py            # (experiment) Tuned Random Forest
 │   ├── 12_train_xgboost.py                # (experiment) XGBoost with CV tuning
 │   ├── 13_train_final.py                  # Final XGBoost training → deployed model
+│   ├── 14_ingest_statsroyale_rankings.py  # StatsRoyale card rankings scraper
 │   └── utils/
 │       └── metadata_utils.py              # RoyaleAPI card metadata fetcher
 ├── models/
@@ -43,7 +44,8 @@ insights through an interactive Streamlit dashboard.
 │   │   ├── 05_trends.py           # Meta trends & card usage over time
 │   │   ├── 06_archetype_insights.py # Archetype heatmaps & SHAP
 │   │   ├── 07_game_theory.py      # Payoff matrices & Nash equilibrium
-│   │   └── 08_recommendations.py  # Deck & card-swap suggestions
+│   │   ├── 08_recommendations.py  # Deck & card-swap suggestions
+│   │   └── 09_meta_insights.py    # StatsRoyale meta card rankings
 │   ├── static/                # Banner images
 │   └── utils/                 # Shared webapp utilities
 │       ├── metadata.py            # RoyaleAPI integration & card metadata
@@ -112,6 +114,12 @@ python scr\04_analyze_common_cards.py
 python scr\05_analyze_win_rates.py
 ```
 
+Ingest external card rankings (scrapes StatsRoyale, falls back to local data):
+
+```powershell
+python scr\14_ingest_statsroyale_rankings.py
+```
+
 ### Expected Outputs (`data/processed/`)
 
 | File | Description |
@@ -132,6 +140,7 @@ python scr\05_analyze_win_rates.py
 | `final_ml_dataset.parquet` | Merged ML-ready dataset (305 columns) |
 | `clean_training_dataset.parquet` | Quality-checked training set |
 | `final_dataset_quality_report.json` | Dataset quality report |
+| `card_rankings.parquet` / `.csv` | Card meta rankings (from StatsRoyale or local fallback) |
 
 ## Model Training and Selection
 
@@ -180,7 +189,7 @@ in-match decisions are not captured in this dataset.
 
 ## Web Application
 
-An 8-page Streamlit dashboard for interactive exploration:
+A 9-page Streamlit dashboard for interactive exploration:
 
 | Page | Description |
 |------|-------------|
@@ -192,6 +201,7 @@ An 8-page Streamlit dashboard for interactive exploration:
 | **Archetype Insights** | Archetype vs archetype win-rate heatmaps, SHAP importance |
 | **Game Theory** | Payoff matrices, Nash equilibrium, dominant strategy analysis |
 | **Recommendations** | Card-swap suggestions and top historical deck rankings |
+| **Meta Insights** | StatsRoyale card rankings, usage rates, and deck meta-strength |
 
 ### Run the App
 
