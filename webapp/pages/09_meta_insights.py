@@ -71,6 +71,41 @@ div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
 .meta-card .card-usage {
     font-size: 12px; color: #1a56db; font-weight: 600;
 }
+/* Hero card spotlight */
+.hero-card {
+    background: linear-gradient(135deg, rgba(26,58,110,0.55) 0%, rgba(26,86,219,0.45) 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(26,86,219,0.25);
+    border-radius: 18px;
+    padding: 32px 24px 28px;
+    text-align: center;
+    max-width: 340px;
+    margin: 20px auto 28px;
+    box-shadow: 0 8px 32px rgba(26,86,219,0.18);
+}
+.hero-card img {
+    width: 160px; height: 160px; object-fit: contain;
+    border-radius: 14px;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+}
+.hero-card .hero-badge {
+    display: inline-block;
+    background: rgba(255,255,255,0.18);
+    color: #fbbf24;
+    font-size: 12px; font-weight: 700;
+    padding: 3px 12px; border-radius: 20px;
+    margin-bottom: 8px; letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.hero-card .hero-name {
+    font-size: 26px; color: #ffffff; font-weight: 800;
+    margin-bottom: 4px;
+}
+.hero-card .hero-usage {
+    font-size: 18px; color: #93c5fd; font-weight: 600;
+}
 .note-box {
     background: #ffffff; border: 1px solid #d0dbe8; border-radius: 10px;
     padding: 14px 16px; color: #3b536e; font-size: 14px;
@@ -136,10 +171,34 @@ c3.metric("Total Cards Tracked", total_cards)
 
 st.divider()
 
-# ── Section 2: Top 25 Card Grid ────────────────────────────────────
+# ── Section 2: Top Card Spotlight ───────────────────────────────────
+st.markdown("<div class='section-label'>Most Used Card</div>", unsafe_allow_html=True)
+
+hero = rankings.iloc[0]
+hero_icon = hero.get("icon_url", "")
+hero_img = (
+    f"<img src='{hero_icon}' alt='{hero['card_name']}'/>"
+    if hero_icon
+    else f"<div style='height:160px;display:flex;align-items:center;"
+         f"justify-content:center;font-size:18px;color:#93c5fd;'>"
+         f"{hero['card_name']}</div>"
+)
+st.markdown(
+    f"<div class='hero-card'>"
+    f"<div class='hero-badge'>\U0001f451 #1 Most Used</div><br>"
+    f"{hero_img}"
+    f"<div class='hero-name'>{hero['card_name']}</div>"
+    f"<div class='hero-usage'>{hero['usage_rate']:.1f}% usage rate</div>"
+    f"</div>",
+    unsafe_allow_html=True,
+)
+
+st.divider()
+
+# ── Section 3: Top 25 Card Grid (cards #2–#25) ─────────────────────
 st.markdown("<div class='section-label'>Top 25 Cards</div>", unsafe_allow_html=True)
 
-top25 = rankings.head(25)
+top25 = rankings.iloc[1:25]
 COLS_PER_ROW = 5
 
 for row_start in range(0, len(top25), COLS_PER_ROW):
@@ -167,7 +226,7 @@ for row_start in range(0, len(top25), COLS_PER_ROW):
 
 st.divider()
 
-# ── Section 3: Bar Chart — Top 10 by Usage Rate ────────────────────
+# ── Section 4: Bar Chart — Top 10 by Usage Rate ────────────────────
 st.markdown("<div class='section-label'>Top 10 Cards by Usage Rate</div>", unsafe_allow_html=True)
 
 top10 = rankings.head(10).copy()
