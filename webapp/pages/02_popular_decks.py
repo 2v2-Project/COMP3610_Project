@@ -35,8 +35,10 @@ st.markdown(
     }
 
     .filter-box {
-        background: #ffffff;
-        border: 1px solid #d0dbe8;
+        background: rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(208, 219, 232, 0.5);
         border-radius: 12px;
         padding: 12px 14px;
         box-shadow: 0 1px 4px rgba(26, 86, 219, 0.06);
@@ -46,9 +48,11 @@ st.markdown(
 
     .summary-chip {
         display: inline-block;
-        background: #eef4ff;
+        background: rgba(238, 244, 255, 0.55);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         color: #1a3a6e;
-        border: 1px solid #d7e3f7;
+        border: 1px solid rgba(215, 227, 247, 0.5);
         border-radius: 999px;
         padding: 6px 12px;
         font-size: 13px;
@@ -58,8 +62,10 @@ st.markdown(
     }
 
     .deck-card-shell {
-        background: #ffffff;
-        border: 1px solid #d0dbe8;
+        background: rgba(255, 255, 255, 0.55);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(208, 219, 232, 0.5);
         border-radius: 16px;
         padding: 18px 18px 14px 18px;
         box-shadow: 0 2px 8px rgba(26, 86, 219, 0.06);
@@ -109,8 +115,10 @@ st.markdown(
     .stats-table {
         width: 100%;
         border-collapse: collapse;
-        background: #f8fbff;
-        border: 1px solid #d7e3f7;
+        background: rgba(248, 251, 255, 0.55);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(215, 227, 247, 0.5);
         border-radius: 12px;
         overflow: hidden;
     }
@@ -137,12 +145,14 @@ st.markdown(
     .winloss-bar {
         width: 100%;
         height: 16px;
-        background: #e5edf8;
+        background: rgba(229, 237, 248, 0.55);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
         border-radius: 999px;
         overflow: hidden;
         display: flex;
         margin-bottom: 12px;
-        border: 1px solid #d7e3f7;
+        border: 1px solid rgba(215, 227, 247, 0.5);
     }
 
     .win-segment {

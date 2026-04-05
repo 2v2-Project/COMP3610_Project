@@ -265,7 +265,7 @@ def _try_shap_analysis():
         orientation="h",
         title=f"Global Feature Importance ({model_name})",
         color="Mean |SHAP|",
-        color_continuous_scale="Blues",
+        color_continuous_scale=[[0, "#60a5fa"], [0.5, "#2563eb"], [1, "#1e3a8a"]],
     )
     fig_importance.update_layout(
         plot_bgcolor="#f8fbff",
@@ -276,19 +276,39 @@ def _try_shap_analysis():
         height=480,
     )
 
-    # ── SHAP summary (beeswarm) ──
+    # ── SHAP summary: mean positive/negative contribution per feature ──
     try:
-        shap_exp = shap.Explanation(
-            values=shap_values,
-            data=X.values,
-            feature_names=feature_names,
+        sv = shap_values
+        if hasattr(sv, 'values'):
+            sv = sv.values
+        top_idx = [feature_names.index(f) for f, _ in top_features[:15]]
+        pos_mean = [float(np.mean(sv[:, i][sv[:, i] > 0])) if np.any(sv[:, i] > 0) else 0 for i in top_idx]
+        neg_mean = [float(np.mean(sv[:, i][sv[:, i] < 0])) if np.any(sv[:, i] < 0) else 0 for i in top_idx]
+        feat_labels = [feature_names[i] for i in top_idx]
+
+        fig_summary = go.Figure()
+        fig_summary.add_trace(go.Bar(
+            y=feat_labels[::-1], x=[p for p in pos_mean[::-1]],
+            orientation="h", name="Pushes toward Win",
+            marker_color="#22c55e",
+        ))
+        fig_summary.add_trace(go.Bar(
+            y=feat_labels[::-1], x=[n for n in neg_mean[::-1]],
+            orientation="h", name="Pushes toward Loss",
+            marker_color="#ef4444",
+        ))
+        fig_summary.update_layout(
+            barmode="relative",
+            title="How Each Feature Pushes the Prediction",
+            xaxis_title="Average SHAP Value",
+            yaxis_title="Feature",
+            plot_bgcolor="#f8fbff",
+            paper_bgcolor="rgba(0,0,0,0)",
+            font_color="#1a3a6e",
+            height=500,
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
         )
-        import matplotlib
-        matplotlib.use("Agg")
-        import matplotlib.pyplot as plt
-        fig_summary, ax = plt.subplots(figsize=(10, 7))
-        shap.plots.beeswarm(shap_exp, show=False)
-        fig_summary = plt.gcf()
+        fig_summary.add_vline(x=0, line_width=1, line_color="#94a3b8")
     except Exception:
         fig_summary = None
 
@@ -468,14 +488,13 @@ Features starting with `opp_` refer to your opponent's deck; `card_` features re
             """)
 
             if fig_summary is not None:
-                st.markdown("**Beeswarm Plot: How Each Feature Pushes the Prediction**")
-                st.pyplot(fig_summary, clear_figure=True)
+                st.plotly_chart(fig_summary, use_container_width=True)
                 st.markdown("""
-Each dot is one match. Colour shows the feature's value (**red = high**, **blue = low**).
-Position shows whether it pushed the prediction towards a win (right) or loss (left).
+**Green bars (right):** on average, this feature pushes the prediction toward a **win**.
+**Red bars (left):** on average, this feature pushes the prediction toward a **loss**.
 
-For example, if `opp_spell_count` has red dots on the right, opponents with **many spells tend to lose**.
-Blue dots on the right would mean a low value of that feature helps you win.
+Longer bars = stronger influence. For example, if `opp_troop_count` has a large green bar,
+opponents running many troops tends to work **in your favour**.
                 """)
 
             st.markdown("**Top 5 Most Important Features**")
