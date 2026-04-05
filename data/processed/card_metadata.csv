@@ -1,0 +1,121 @@
+card_id,name,elixir,rarity,type,icon_url
+26000000,Knight,3,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/knight.png
+26000001,Archers,3,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/archers.png
+26000002,Goblins,2,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/goblins.png
+26000003,Giant,5,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/giant.png
+26000004,P.E.K.K.A,7,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/pekka.png
+26000005,Minions,3,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/minions.png
+26000006,Balloon,5,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/balloon.png
+26000007,Witch,5,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/witch.png
+26000008,Barbarians,5,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/barbarians.png
+26000009,Golem,8,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/golem.png
+26000010,Skeletons,1,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/skeletons.png
+26000011,Valkyrie,4,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/valkyrie.png
+26000012,Skeleton Army,3,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/skeleton-army.png
+26000013,Bomber,2,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/bomber.png
+26000014,Musketeer,4,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/musketeer.png
+26000015,Baby Dragon,4,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/baby-dragon.png
+26000016,Prince,5,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/prince.png
+26000017,Wizard,5,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/wizard.png
+26000018,Mini P.E.K.K.A,4,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/mini-pekka.png
+26000019,Spear Goblins,2,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/spear-goblins.png
+26000020,Giant Skeleton,6,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/giant-skeleton.png
+26000021,Hog Rider,4,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/hog-rider.png
+26000022,Minion Horde,5,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/minion-horde.png
+26000023,Ice Wizard,3,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/ice-wizard.png
+26000024,Royal Giant,6,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/royal-giant.png
+26000025,Guards,3,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/guards.png
+26000026,Princess,3,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/princess.png
+26000027,Dark Prince,4,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/dark-prince.png
+26000028,Three Musketeers,9,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/three-musketeers.png
+26000029,Lava Hound,7,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/lava-hound.png
+26000030,Ice Spirit,1,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/ice-spirit.png
+26000031,Fire Spirit,1,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/fire-spirit.png
+26000032,Miner,3,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/miner.png
+26000033,Sparky,6,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/sparky.png
+26000034,Bowler,5,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/bowler.png
+26000035,Lumberjack,4,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/lumberjack.png
+26000036,Battle Ram,4,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/battle-ram.png
+26000037,Inferno Dragon,4,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/inferno-dragon.png
+26000038,Ice Golem,2,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/ice-golem.png
+26000039,Mega Minion,3,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/mega-minion.png
+26000040,Dart Goblin,3,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/dart-goblin.png
+26000041,Goblin Gang,3,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/goblin-gang.png
+26000042,Electro Wizard,4,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/electro-wizard.png
+26000043,Elite Barbarians,6,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/elite-barbarians.png
+26000044,Hunter,4,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/hunter.png
+26000045,Executioner,5,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/executioner.png
+26000046,Bandit,3,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/bandit.png
+26000047,Royal Recruits,7,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/royal-recruits.png
+26000048,Night Witch,4,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/night-witch.png
+26000049,Bats,2,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/bats.png
+26000050,Royal Ghost,3,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/royal-ghost.png
+26000051,Ram Rider,5,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/ram-rider.png
+26000052,Zappies,4,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/zappies.png
+26000053,Rascals,5,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/rascals.png
+26000054,Cannon Cart,5,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/cannon-cart.png
+26000055,Mega Knight,7,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/mega-knight.png
+26000056,Skeleton Barrel,3,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/skeleton-barrel.png
+26000057,Flying Machine,4,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/flying-machine.png
+26000058,Wall Breakers,2,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/wall-breakers.png
+26000059,Royal Hogs,5,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/royal-hogs.png
+26000060,Goblin Giant,6,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/goblin-giant.png
+26000061,Fisherman,3,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/fisherman.png
+26000062,Magic Archer,4,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/magic-archer.png
+26000063,Electro Dragon,5,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/electro-dragon.png
+26000064,Firecracker,3,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/firecracker.png
+26000065,Mighty Miner,4,Champion,troop,https://cdn.royaleapi.com/static/img/cards-150/mighty-miner.png
+26000066,Super Witch,6,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/super-witch.png
+26000067,Elixir Golem,3,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/elixir-golem.png
+26000068,Battle Healer,4,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/battle-healer.png
+26000069,Skeleton King,4,Champion,troop,https://cdn.royaleapi.com/static/img/cards-150/skeleton-king.png
+26000070,Super Lava Hound,8,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/super-lava-hound.png
+26000071,Super Magic Archer,5,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/super-magic-archer.png
+26000072,Archer Queen,5,Champion,troop,https://cdn.royaleapi.com/static/img/cards-150/archer-queen.png
+26000073,Santa Hog Rider,5,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/santa-hog-rider.png
+26000074,Golden Knight,4,Champion,troop,https://cdn.royaleapi.com/static/img/cards-150/golden-knight.png
+26000075,Super Ice Golem,4,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/super-ice-golem.png
+26000077,Monk,5,Champion,troop,https://cdn.royaleapi.com/static/img/cards-150/monk.png
+26000078,Super Archers,3,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/super-archers.png
+26000080,Skeleton Dragons,4,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/skeleton-dragons.png
+26000081,Terry,4,Champion,troop,https://cdn.royaleapi.com/static/img/cards-150/terry.png
+26000082,Super Mini P.E.K.K.A,5,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/super-mini-pekka.png
+26000083,Mother Witch,4,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/mother-witch.png
+26000084,Electro Spirit,1,Common,troop,https://cdn.royaleapi.com/static/img/cards-150/electro-spirit.png
+26000085,Electro Giant,7,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/electro-giant.png
+26000086,Raging Prince,5,Epic,troop,https://cdn.royaleapi.com/static/img/cards-150/raging-prince.png
+26000087,Phoenix,4,Legendary,troop,https://cdn.royaleapi.com/static/img/cards-150/phoenix.png
+27000000,Cannon,3,Common,building,https://cdn.royaleapi.com/static/img/cards-150/cannon.png
+27000001,Goblin Hut,5,Rare,building,https://cdn.royaleapi.com/static/img/cards-150/goblin-hut.png
+27000002,Mortar,4,Common,building,https://cdn.royaleapi.com/static/img/cards-150/mortar.png
+27000003,Inferno Tower,5,Rare,building,https://cdn.royaleapi.com/static/img/cards-150/inferno-tower.png
+27000004,Bomb Tower,4,Rare,building,https://cdn.royaleapi.com/static/img/cards-150/bomb-tower.png
+27000005,Barbarian Hut,6,Rare,building,https://cdn.royaleapi.com/static/img/cards-150/barbarian-hut.png
+27000006,Tesla,4,Common,building,https://cdn.royaleapi.com/static/img/cards-150/tesla.png
+27000007,Elixir Collector,6,Rare,building,https://cdn.royaleapi.com/static/img/cards-150/elixir-collector.png
+27000008,X-Bow,6,Epic,building,https://cdn.royaleapi.com/static/img/cards-150/x-bow.png
+27000009,Tombstone,3,Rare,building,https://cdn.royaleapi.com/static/img/cards-150/tombstone.png
+27000010,Furnace,4,Rare,building,https://cdn.royaleapi.com/static/img/cards-150/furnace.png
+27000012,Goblin Cage,4,Rare,building,https://cdn.royaleapi.com/static/img/cards-150/goblin-cage.png
+27000013,Goblin Drill,4,Epic,building,https://cdn.royaleapi.com/static/img/cards-150/goblin-drill.png
+27000014,Party Hut,5,Legendary,building,https://cdn.royaleapi.com/static/img/cards-150/party-hut.png
+28000000,Fireball,4,Rare,spell,https://cdn.royaleapi.com/static/img/cards-150/fireball.png
+28000001,Arrows,3,Common,spell,https://cdn.royaleapi.com/static/img/cards-150/arrows.png
+28000002,Rage,2,Epic,spell,https://cdn.royaleapi.com/static/img/cards-150/rage.png
+28000003,Rocket,6,Rare,spell,https://cdn.royaleapi.com/static/img/cards-150/rocket.png
+28000004,Goblin Barrel,3,Epic,spell,https://cdn.royaleapi.com/static/img/cards-150/goblin-barrel.png
+28000005,Freeze,4,Epic,spell,https://cdn.royaleapi.com/static/img/cards-150/freeze.png
+28000006,Mirror,1,Epic,spell,https://cdn.royaleapi.com/static/img/cards-150/mirror.png
+28000007,Lightning,6,Epic,spell,https://cdn.royaleapi.com/static/img/cards-150/lightning.png
+28000008,Zap,2,Common,spell,https://cdn.royaleapi.com/static/img/cards-150/zap.png
+28000009,Poison,4,Epic,spell,https://cdn.royaleapi.com/static/img/cards-150/poison.png
+28000010,Graveyard,5,Legendary,spell,https://cdn.royaleapi.com/static/img/cards-150/graveyard.png
+28000011,The Log,2,Legendary,spell,https://cdn.royaleapi.com/static/img/cards-150/the-log.png
+28000012,Tornado,3,Epic,spell,https://cdn.royaleapi.com/static/img/cards-150/tornado.png
+28000013,Clone,3,Epic,spell,https://cdn.royaleapi.com/static/img/cards-150/clone.png
+28000014,Earthquake,3,Rare,spell,https://cdn.royaleapi.com/static/img/cards-150/earthquake.png
+28000015,Barbarian Barrel,2,Epic,spell,https://cdn.royaleapi.com/static/img/cards-150/barbarian-barrel.png
+28000016,Heal Spirit,1,Rare,troop,https://cdn.royaleapi.com/static/img/cards-150/heal-spirit.png
+28000017,Giant Snowball,2,Common,spell,https://cdn.royaleapi.com/static/img/cards-150/giant-snowball.png
+28000018,Royal Delivery,3,Common,spell,https://cdn.royaleapi.com/static/img/cards-150/royal-delivery.png
+28000020,Party Rocket,5,Legendary,spell,https://cdn.royaleapi.com/static/img/cards-150/party-rocket.png

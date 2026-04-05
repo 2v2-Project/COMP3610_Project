@@ -3,10 +3,13 @@ Data loading utilities for the Streamlit app.
 Centralizes loading of datasets, metadata, and other data files with caching.
 """
 
+import logging
 import streamlit as st
 from pathlib import Path
 import pandas as pd
 from typing import Optional, Union
+
+logger = logging.getLogger(__name__)
 
 
 @st.cache_data
@@ -132,3 +135,23 @@ def load_historical_trends(path: Union[str, Path] = "data/processed/historical_t
         DataFrame with time-series trend data, or None if not found
     """
     return load_csv_if_exists(path)
+
+
+@st.cache_data
+def load_card_rankings(path: Union[str, Path] = "data/processed/card_rankings.parquet") -> Optional[pd.DataFrame]:
+    """Load StatsRoyale card rankings from parquet, with CSV fallback."""
+    parquet = Path(path)
+    csv_fallback = parquet.with_suffix(".csv")
+
+    if parquet.exists():
+        df = pd.read_parquet(parquet)
+        logger.info("Loaded card rankings: %d cards from %s", len(df), parquet)
+        return df
+
+    if csv_fallback.exists():
+        df = pd.read_csv(csv_fallback)
+        logger.info("Loaded card rankings (CSV fallback): %d cards from %s", len(df), csv_fallback)
+        return df
+
+    logger.warning("Card rankings not found at %s or %s", parquet, csv_fallback)
+    return None
