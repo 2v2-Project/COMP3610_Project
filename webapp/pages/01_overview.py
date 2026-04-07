@@ -38,11 +38,16 @@ ELIXIR = get_elixir_parquet_source()
 
 
 # ------------------------------------------------------------------
-# DuckDB helper — cached per query
+# DuckDB helper — cached per query (memory capped for Cloud)
 # ------------------------------------------------------------------
 @st.cache_data
 def query(sql: str) -> pd.DataFrame:
-    return duckdb.sql(sql).df()
+    con = duckdb.connect()
+    try:
+        con.execute("SET memory_limit = '512MB'")
+        return con.sql(sql).df()
+    finally:
+        con.close()
 
 
 # ------------------------------------------------------------------
@@ -76,36 +81,39 @@ p2_wins = total_matches - p1_wins
 win_rate = p1_wins / total_matches * 100
 avg_trophies = (metrics["avg_p1_trophies"] + metrics["avg_p2_trophies"]) / 2
 
-# Unique cards — UNPIVOT the 16 card columns
+# Unique cards — UNPIVOT the 16 card columns (use SAMPLE for memory)
 unique_cards = query(f"""
-    WITH all_cards AS (
-        SELECT "player1.card1" AS cid FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card2" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card3" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card4" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card5" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card6" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card7" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card8" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card1" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card2" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card3" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card4" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card5" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card6" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card7" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card8" FROM '{CLEAN}'
+    WITH sample AS (
+        SELECT * FROM '{CLEAN}' USING SAMPLE 500000
+    ),
+    all_cards AS (
+        SELECT "player1.card1" AS cid FROM sample
+        UNION ALL SELECT "player1.card2" FROM sample
+        UNION ALL SELECT "player1.card3" FROM sample
+        UNION ALL SELECT "player1.card4" FROM sample
+        UNION ALL SELECT "player1.card5" FROM sample
+        UNION ALL SELECT "player1.card6" FROM sample
+        UNION ALL SELECT "player1.card7" FROM sample
+        UNION ALL SELECT "player1.card8" FROM sample
+        UNION ALL SELECT "player2.card1" FROM sample
+        UNION ALL SELECT "player2.card2" FROM sample
+        UNION ALL SELECT "player2.card3" FROM sample
+        UNION ALL SELECT "player2.card4" FROM sample
+        UNION ALL SELECT "player2.card5" FROM sample
+        UNION ALL SELECT "player2.card6" FROM sample
+        UNION ALL SELECT "player2.card7" FROM sample
+        UNION ALL SELECT "player2.card8" FROM sample
     )
     SELECT count(DISTINCT cid) AS n FROM all_cards
 """).iloc[0]["n"]
 
 unique_players = query(f"""
-    WITH tags AS (
-        SELECT "player1.tag" AS tag FROM '{CLEAN}'
+    WITH sample AS (
+        SELECT "player1.tag" AS tag FROM '{CLEAN}' USING SAMPLE 500000
         UNION
-        SELECT "player2.tag" FROM '{CLEAN}'
+        SELECT "player2.tag" FROM '{CLEAN}' USING SAMPLE 500000
     )
-    SELECT count(*) AS n FROM tags
+    SELECT count(*) AS n FROM sample
 """).iloc[0]["n"]
 
 # ------------------------------------------------------------------
@@ -197,23 +205,24 @@ st.divider()
 st.subheader("Top 10 Most Used Cards")
 
 card_usage = query(f"""
-    WITH all_cards AS (
-        SELECT "player1.card1" AS cid FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card2" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card3" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card4" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card5" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card6" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card7" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card8" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card1" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card2" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card3" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card4" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card5" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card6" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card7" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card8" FROM '{CLEAN}'
+    WITH sample AS (SELECT * FROM '{CLEAN}' USING SAMPLE 500000),
+    all_cards AS (
+        SELECT "player1.card1" AS cid FROM sample
+        UNION ALL SELECT "player1.card2" FROM sample
+        UNION ALL SELECT "player1.card3" FROM sample
+        UNION ALL SELECT "player1.card4" FROM sample
+        UNION ALL SELECT "player1.card5" FROM sample
+        UNION ALL SELECT "player1.card6" FROM sample
+        UNION ALL SELECT "player1.card7" FROM sample
+        UNION ALL SELECT "player1.card8" FROM sample
+        UNION ALL SELECT "player2.card1" FROM sample
+        UNION ALL SELECT "player2.card2" FROM sample
+        UNION ALL SELECT "player2.card3" FROM sample
+        UNION ALL SELECT "player2.card4" FROM sample
+        UNION ALL SELECT "player2.card5" FROM sample
+        UNION ALL SELECT "player2.card6" FROM sample
+        UNION ALL SELECT "player2.card7" FROM sample
+        UNION ALL SELECT "player2.card8" FROM sample
     )
     SELECT cid AS card_id, count(*) AS usage_count
     FROM all_cards
@@ -221,7 +230,7 @@ card_usage = query(f"""
     ORDER BY usage_count DESC
     LIMIT 10
 """)
-total_card_slots = total_matches * 16
+total_card_slots = 500000 * 16  # matches the SAMPLE size in card_usage query
 card_usage["card_name"] = card_usage["card_id"].map(card_name_map).fillna(
     card_usage["card_id"].astype(str)
 )
@@ -298,13 +307,13 @@ with r3c1:
     )
 
 with r3c2:
-    # Archetype win rates via DuckDB — join archetype + clean on row number
+    # Archetype win rates — LIMIT keeps row alignment for POSITIONAL JOIN
     arch_wr = query(f"""
         SELECT a.player_archetype AS "Archetype",
                avg(c.target_win) * 100 AS "Win Rate",
                count(*) AS "Matches"
-        FROM '{ARCH}' a
-        POSITIONAL JOIN '{CLEAN}' c
+        FROM (SELECT player_archetype FROM '{ARCH}' LIMIT 500000) a
+        POSITIONAL JOIN (SELECT target_win FROM '{CLEAN}' LIMIT 500000) c
         GROUP BY a.player_archetype
         ORDER BY "Win Rate"
     """)

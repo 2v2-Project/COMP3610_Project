@@ -51,6 +51,7 @@ BLUE_SEQ = [[0, "#a3c4f3"], [1, "#1a56db"]]
 def query(sql: str) -> pd.DataFrame:
     con = duckdb.connect()
     try:
+        con.execute("SET memory_limit = '512MB'")
         return con.sql(sql).df()
     finally:
         con.close()
@@ -79,23 +80,24 @@ st.subheader("🃏 Most Used Cards")
 top_n_cards = st.slider("Number of cards to show", 10, 50, 20, 5, key="top_cards")
 
 card_usage = query(f"""
-    WITH all_cards AS (
-        SELECT "player1.card1" AS cid FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card2" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card3" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card4" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card5" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card6" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card7" FROM '{CLEAN}'
-        UNION ALL SELECT "player1.card8" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card1" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card2" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card3" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card4" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card5" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card6" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card7" FROM '{CLEAN}'
-        UNION ALL SELECT "player2.card8" FROM '{CLEAN}'
+    WITH sample AS (SELECT * FROM '{CLEAN}' USING SAMPLE 500000),
+    all_cards AS (
+        SELECT "player1.card1" AS cid FROM sample
+        UNION ALL SELECT "player1.card2" FROM sample
+        UNION ALL SELECT "player1.card3" FROM sample
+        UNION ALL SELECT "player1.card4" FROM sample
+        UNION ALL SELECT "player1.card5" FROM sample
+        UNION ALL SELECT "player1.card6" FROM sample
+        UNION ALL SELECT "player1.card7" FROM sample
+        UNION ALL SELECT "player1.card8" FROM sample
+        UNION ALL SELECT "player2.card1" FROM sample
+        UNION ALL SELECT "player2.card2" FROM sample
+        UNION ALL SELECT "player2.card3" FROM sample
+        UNION ALL SELECT "player2.card4" FROM sample
+        UNION ALL SELECT "player2.card5" FROM sample
+        UNION ALL SELECT "player2.card6" FROM sample
+        UNION ALL SELECT "player2.card7" FROM sample
+        UNION ALL SELECT "player2.card8" FROM sample
     )
     SELECT cid AS card_id, count(*) AS usage_count
     FROM all_cards
@@ -103,7 +105,7 @@ card_usage = query(f"""
     ORDER BY usage_count DESC
 """)
 
-total_card_slots = int(query(f"SELECT count(*) AS n FROM '{CLEAN}'").iloc[0]["n"]) * 16
+total_card_slots = 500000 * 16
 card_usage["card_name"] = card_usage["card_id"].map(card_name_map).fillna(card_usage["card_id"].astype(str))
 card_usage["usage_pct"] = card_usage["usage_count"] / total_card_slots * 100
 card_usage["card_type"] = card_usage["card_id"].map(card_type_map).fillna("unknown")
@@ -160,28 +162,31 @@ if selected_cards_for_trend:
     if selected_ids:
         id_list = ", ".join(str(int(cid)) for cid in selected_ids)
         daily_usage = query(f"""
-            WITH daily_matches AS (
+            WITH sample AS (
+                SELECT * FROM '{CLEAN}' USING SAMPLE 500000
+            ),
+            daily_matches AS (
                 SELECT datetime::DATE AS match_date, count(*) AS day_matches
-                FROM '{CLEAN}'
+                FROM sample
                 GROUP BY match_date
             ),
             all_cards AS (
-                SELECT datetime::DATE AS match_date, "player1.card1" AS cid FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player1.card2" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player1.card3" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player1.card4" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player1.card5" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player1.card6" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player1.card7" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player1.card8" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player2.card1" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player2.card2" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player2.card3" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player2.card4" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player2.card5" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player2.card6" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player2.card7" FROM '{CLEAN}'
-                UNION ALL SELECT datetime::DATE, "player2.card8" FROM '{CLEAN}'
+                SELECT datetime::DATE AS match_date, "player1.card1" AS cid FROM sample
+                UNION ALL SELECT datetime::DATE, "player1.card2" FROM sample
+                UNION ALL SELECT datetime::DATE, "player1.card3" FROM sample
+                UNION ALL SELECT datetime::DATE, "player1.card4" FROM sample
+                UNION ALL SELECT datetime::DATE, "player1.card5" FROM sample
+                UNION ALL SELECT datetime::DATE, "player1.card6" FROM sample
+                UNION ALL SELECT datetime::DATE, "player1.card7" FROM sample
+                UNION ALL SELECT datetime::DATE, "player1.card8" FROM sample
+                UNION ALL SELECT datetime::DATE, "player2.card1" FROM sample
+                UNION ALL SELECT datetime::DATE, "player2.card2" FROM sample
+                UNION ALL SELECT datetime::DATE, "player2.card3" FROM sample
+                UNION ALL SELECT datetime::DATE, "player2.card4" FROM sample
+                UNION ALL SELECT datetime::DATE, "player2.card5" FROM sample
+                UNION ALL SELECT datetime::DATE, "player2.card6" FROM sample
+                UNION ALL SELECT datetime::DATE, "player2.card7" FROM sample
+                UNION ALL SELECT datetime::DATE, "player2.card8" FROM sample
             )
             SELECT a.match_date, a.cid AS card_id,
                    count(*) AS card_count,
@@ -264,8 +269,8 @@ with col_a2:
         SELECT a.player_archetype AS "Archetype",
                avg(c.target_win) * 100 AS "Win Rate",
                count(*) AS "Matches"
-        FROM '{ARCH}' a
-        POSITIONAL JOIN '{CLEAN}' c
+        FROM (SELECT player_archetype FROM '{ARCH}' LIMIT 500000) a
+        POSITIONAL JOIN (SELECT target_win FROM '{CLEAN}' LIMIT 500000) c
         GROUP BY a.player_archetype
         ORDER BY "Win Rate" DESC
     """)
@@ -312,14 +317,15 @@ PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 def build_top_decks(min_matches: int) -> pd.DataFrame:
     """Build top decks entirely in DuckDB for speed — avoids row-by-row Python."""
     raw = query(f"""
-        WITH decks AS (
+        WITH sample AS (SELECT * FROM '{CLEAN}' USING SAMPLE 500000),
+        decks AS (
             SELECT
                 list_sort(list_value(
                     "player1.card1","player1.card2","player1.card3","player1.card4",
                     "player1.card5","player1.card6","player1.card7","player1.card8"
                 ))::VARCHAR AS deck_key,
                 CASE WHEN "player1.crowns" > "player2.crowns" THEN 1 ELSE 0 END AS win
-            FROM '{CLEAN}'
+            FROM sample
         )
         SELECT deck_key,
                count(*) AS matches_played,
