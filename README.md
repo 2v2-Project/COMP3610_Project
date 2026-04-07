@@ -218,3 +218,7 @@ streamlit run app.py
 - **RoyaleAPI integration** for card metadata, icons, and enrichment
 - **DuckDB** for fast analytical queries over 12 M+ row parquet files
 - **Deck recommendation engine** with model-scored card swaps
+
+
+### Deployed Application Link 
+https://royaleanalytics.streamlit.app/
