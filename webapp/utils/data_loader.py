@@ -8,34 +8,32 @@ import streamlit as st
 from pathlib import Path
 import pandas as pd
 from typing import Optional, Union
-import duckdb
-import requests
+from huggingface_hub import hf_hub_download
 
 logger = logging.getLogger(__name__)
 
 # ── HuggingFace dataset config ───────────────────────────────────
-HF_PARQUET_URL = (
-    "https://huggingface.co/datasets/lillyem/clash-royale-data"
-    "/resolve/main/clash_royale_clean.parquet"
-)
+HF_REPO_ID = "lillyem/clash-royale-data"
+HF_FILENAME = "clash_royale_clean.parquet"
 CLEAN_PARQUET_PATH = Path("data/processed/clash_royale_clean.parquet")
-
-
-def _ensure_httpfs() -> None:
-    """Install and load DuckDB httpfs extension (idempotent)."""
-    duckdb.sql("INSTALL httpfs; LOAD httpfs;")
 
 
 def get_clean_parquet_source() -> str:
     """
-    Return the path/URL for clash_royale_clean.parquet.
-    Uses the local file if present, otherwise returns the HuggingFace URL
-    so DuckDB / Polars can read it directly over HTTPS.
+    Return the local path to clash_royale_clean.parquet, downloading it
+    from HuggingFace via huggingface_hub the first time the app runs.
+    Uses HF's built-in cache and handles Xet storage transparently.
     """
     if CLEAN_PARQUET_PATH.exists():
         return str(CLEAN_PARQUET_PATH)
-    _ensure_httpfs()
-    return HF_PARQUET_URL
+
+    logger.info("Downloading %s from HuggingFace …", HF_FILENAME)
+    cached_path = hf_hub_download(
+        repo_id=HF_REPO_ID,
+        filename=HF_FILENAME,
+        repo_type="dataset",
+    )
+    return cached_path
 
 
 @st.cache_data
