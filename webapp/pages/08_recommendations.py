@@ -33,7 +33,7 @@ from utils.uncertainty import (
     predict_probability_with_xgboost,
 )
 from utils.model_loader import load_feature_schema
-from utils.data_loader import get_clean_parquet_source
+from utils.data_loader import get_clean_parquet_source, get_final_ml_parquet_source
 from utils.recommendation import (
     score_swaps_with_model,
     find_top_historical_decks,
@@ -104,7 +104,7 @@ ELIXIR_ICON = "https://cdn.royaleapi.com/static/img/ui/elixir.png"
 # ── Data paths ──────────────────────────────────────────────────────
 DATA_PATHS = [
     get_clean_parquet_source(),
-    str(Path("data/processed/final_ml_dataset.parquet")),
+    get_final_ml_parquet_source(),
 ]
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]

@@ -6,6 +6,8 @@ Provides modular utilities for data loading, model inference, preprocessing, and
 from .data_loader import (
     get_clean_parquet_source,
     get_archetype_parquet_source,
+    get_elixir_parquet_source,
+    get_final_ml_parquet_source,
     load_card_metadata,
     load_final_dataset,
     load_csv_if_exists,

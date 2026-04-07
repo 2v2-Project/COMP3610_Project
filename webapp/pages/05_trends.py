@@ -26,7 +26,7 @@ inject_fonts()
 
 from utils.metadata import get_card_names
 from utils.deck_helpers import build_deck_key, enrich_deck_record
-from utils.data_loader import get_clean_parquet_source, get_archetype_parquet_source
+from utils.data_loader import get_clean_parquet_source, get_archetype_parquet_source, get_elixir_parquet_source
 
 # ------------------------------------------------------------------
 # Paths
@@ -34,7 +34,7 @@ from utils.data_loader import get_clean_parquet_source, get_archetype_parquet_so
 DATA_DIR = Path("data/processed")
 CLEAN = get_clean_parquet_source()
 ARCH = get_archetype_parquet_source()
-ELIXIR = str(DATA_DIR / "deck_elixir_features.parquet")
+ELIXIR = get_elixir_parquet_source()
 
 CHART_LAYOUT = dict(
     paper_bgcolor="rgba(0,0,0,0)",
