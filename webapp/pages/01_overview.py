@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 st.set_page_config(page_title="Overview", layout="wide")
 
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import get_clean_parquet_source, get_archetype_parquet_source
+from utils.data_loader import get_clean_parquet_source, get_archetype_parquet_source, get_elixir_parquet_source
 inject_fonts()
 
 # ------------------------------------------------------------------
@@ -34,7 +34,7 @@ inject_fonts()
 DATA_DIR = Path("data/processed")
 CLEAN = get_clean_parquet_source()
 ARCH = get_archetype_parquet_source()
-ELIXIR = str(DATA_DIR / "deck_elixir_features.parquet")
+ELIXIR = get_elixir_parquet_source()
 
 
 # ------------------------------------------------------------------

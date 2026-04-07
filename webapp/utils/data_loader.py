@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 HF_REPO_ID = "lillyem/clash-royale-data"
 CLEAN_PARQUET_PATH = Path("data/processed/clash_royale_clean.parquet")
 ARCH_PARQUET_PATH = Path("data/processed/archetype_features.parquet")
+ELIXIR_PARQUET_PATH = Path("data/processed/deck_elixir_features.parquet")
+FINAL_ML_PARQUET_PATH = Path("data/processed/final_ml_dataset.parquet")
 
 
 def _hf_or_local(local_path: Path, hf_filename: str) -> str:
@@ -38,6 +40,16 @@ def get_clean_parquet_source() -> str:
 def get_archetype_parquet_source() -> str:
     """Return path to archetype_features.parquet (downloads from HF if needed)."""
     return _hf_or_local(ARCH_PARQUET_PATH, "archetype_features.parquet")
+
+
+def get_elixir_parquet_source() -> str:
+    """Return path to deck_elixir_features.parquet (downloads from HF if needed)."""
+    return _hf_or_local(ELIXIR_PARQUET_PATH, "deck_elixir_features.parquet")
+
+
+def get_final_ml_parquet_source() -> str:
+    """Return path to final_ml_dataset.parquet (downloads from HF if needed)."""
+    return _hf_or_local(FINAL_ML_PARQUET_PATH, "final_ml_dataset.parquet")
 
 
 @st.cache_data

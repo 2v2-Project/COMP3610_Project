@@ -39,7 +39,7 @@ from utils.model_loader import load_best_model, load_feature_schema, load_xgboos
 from utils.preprocess import build_feature_vector
 from utils.explanation_engine import build_prediction_explanations
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import load_card_rankings, get_clean_parquet_source
+from utils.data_loader import load_card_rankings, get_clean_parquet_source, get_final_ml_parquet_source
 
 logger = logging.getLogger(__name__)
 
@@ -197,7 +197,7 @@ st.markdown(
 
 DATA_PATHS = [
     get_clean_parquet_source(),
-    str(Path("data/processed/final_ml_dataset.parquet")),
+    get_final_ml_parquet_source(),
 ]
 
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
