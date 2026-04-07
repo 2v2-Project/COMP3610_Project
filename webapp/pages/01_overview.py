@@ -25,14 +25,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 st.set_page_config(page_title="Overview", layout="wide")
 
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import ensure_clean_parquet
+from utils.data_loader import get_clean_parquet_source
 inject_fonts()
 
 # ------------------------------------------------------------------
 # Paths
 # ------------------------------------------------------------------
 DATA_DIR = Path("data/processed")
-CLEAN = str(ensure_clean_parquet())
+CLEAN = get_clean_parquet_source()
 ARCH = str(DATA_DIR / "archetype_features.parquet")
 ELIXIR = str(DATA_DIR / "deck_elixir_features.parquet")
 

@@ -8,6 +8,7 @@ import streamlit as st
 from pathlib import Path
 import pandas as pd
 from typing import Optional, Union
+import duckdb
 import requests
 
 logger = logging.getLogger(__name__)
@@ -20,29 +21,21 @@ HF_PARQUET_URL = (
 CLEAN_PARQUET_PATH = Path("data/processed/clash_royale_clean.parquet")
 
 
-def ensure_clean_parquet(dest: Path = CLEAN_PARQUET_PATH) -> Path:
-    """
-    Return the local path to clash_royale_clean.parquet, downloading it
-    from HuggingFace on first run if the file is not already present.
-    """
-    if dest.exists():
-        return dest
+def _ensure_httpfs() -> None:
+    """Install and load DuckDB httpfs extension (idempotent)."""
+    duckdb.sql("INSTALL httpfs; LOAD httpfs;")
 
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    logger.info("Downloading clash_royale_clean.parquet from HuggingFace …")
-    resp = requests.get(HF_PARQUET_URL, stream=True, timeout=300)
-    resp.raise_for_status()
-    tmp = dest.with_suffix(".tmp")
-    try:
-        with open(tmp, "wb") as f:
-            for chunk in resp.iter_content(chunk_size=1 << 20):  # 1 MB chunks
-                f.write(chunk)
-        tmp.rename(dest)
-    except BaseException:
-        tmp.unlink(missing_ok=True)
-        raise
-    logger.info("Downloaded %s (%.1f MB)", dest, dest.stat().st_size / 1e6)
-    return dest
+
+def get_clean_parquet_source() -> str:
+    """
+    Return the path/URL for clash_royale_clean.parquet.
+    Uses the local file if present, otherwise returns the HuggingFace URL
+    so DuckDB / Polars can read it directly over HTTPS.
+    """
+    if CLEAN_PARQUET_PATH.exists():
+        return str(CLEAN_PARQUET_PATH)
+    _ensure_httpfs()
+    return HF_PARQUET_URL
 
 
 @st.cache_data

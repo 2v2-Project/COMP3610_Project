@@ -31,7 +31,7 @@ from utils.metadata import (
     get_elixir_costs,
 )
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import ensure_clean_parquet
+from utils.data_loader import get_clean_parquet_source
 
 st.set_page_config(page_title="Game Theory Insights", layout="wide")
 inject_fonts()
@@ -68,8 +68,8 @@ st.markdown(
 
 # ── Constants ───────────────────────────────────────────────────────
 DATA_PATHS = [
-    ensure_clean_parquet(),
-    Path("data/processed/final_ml_dataset.parquet"),
+    get_clean_parquet_source(),
+    str(Path("data/processed/final_ml_dataset.parquet")),
 ]
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]
@@ -151,9 +151,9 @@ SAMPLE_SIZE = 500_000
 
 @st.cache_data(show_spinner="Loading match data …")
 def load_match_data() -> pd.DataFrame:
-    for p in DATA_PATHS:
-        if p.exists():
-            df = pl.read_parquet(p)
+    for src in DATA_PATHS:
+        try:
+            df = pl.read_parquet(src)
             needed = set(PLAYER_CARD_COLS + OPPONENT_CARD_COLS +
                          [PLAYER_CROWNS, OPPONENT_CROWNS])
             if needed.issubset(set(df.columns)):
@@ -162,6 +162,8 @@ def load_match_data() -> pd.DataFrame:
                 if selected.height > SAMPLE_SIZE:
                     selected = selected.sample(n=SAMPLE_SIZE, seed=42)
                 return selected.to_pandas()
+        except Exception:
+            continue
     raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")
 
 

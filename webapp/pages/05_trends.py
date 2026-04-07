@@ -26,13 +26,13 @@ inject_fonts()
 
 from utils.metadata import get_card_names
 from utils.deck_helpers import build_deck_key, enrich_deck_record
-from utils.data_loader import ensure_clean_parquet
+from utils.data_loader import get_clean_parquet_source
 
 # ------------------------------------------------------------------
 # Paths
 # ------------------------------------------------------------------
 DATA_DIR = Path("data/processed")
-CLEAN = str(ensure_clean_parquet())
+CLEAN = get_clean_parquet_source()
 ARCH = str(DATA_DIR / "archetype_features.parquet")
 ELIXIR = str(DATA_DIR / "deck_elixir_features.parquet")
 

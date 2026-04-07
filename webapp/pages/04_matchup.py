@@ -40,7 +40,7 @@ from utils.preprocess import build_feature_vector
 st.set_page_config(page_title="Matchup Analysis", layout="wide")
 
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import load_card_rankings, ensure_clean_parquet
+from utils.data_loader import load_card_rankings, get_clean_parquet_source
 
 inject_fonts()
 
@@ -118,8 +118,8 @@ st.markdown(
 
 # ── Data paths ──────────────────────────────────────────────────────
 DATA_PATHS = [
-    ensure_clean_parquet(),
-    Path("data/processed/final_ml_dataset.parquet"),
+    get_clean_parquet_source(),
+    str(Path("data/processed/final_ml_dataset.parquet")),
 ]
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]
@@ -160,13 +160,15 @@ def _load_metadata_df() -> pd.DataFrame:
 
 @st.cache_data(show_spinner=True, ttl=3600)
 def load_match_data() -> pl.DataFrame:
-    for p in DATA_PATHS:
-        if p.exists():
-            df = pl.read_parquet(p)
+    for src in DATA_PATHS:
+        try:
+            df = pl.read_parquet(src)
             needed = set(PLAYER_CARD_COLS + OPPONENT_CARD_COLS +
                          [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL])
             if needed.issubset(set(df.columns)):
                 return df.select(list(needed))
+        except Exception:
+            continue
     raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")
 
 
