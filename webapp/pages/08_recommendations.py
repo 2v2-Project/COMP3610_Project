@@ -101,11 +101,8 @@ st.markdown(
 
 ELIXIR_ICON = "https://cdn.royaleapi.com/static/img/ui/elixir.png"
 
-# ── Data paths ──────────────────────────────────────────────────────
-DATA_PATHS = [
-    get_clean_parquet_source(),
-    get_final_ml_parquet_source(),
-]
+SAMPLE_SIZE = 200_000
+
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]
 PLAYER_CROWNS_COL = "player1.crowns"
@@ -147,15 +144,13 @@ def _load_metadata_df() -> pd.DataFrame:
 
 @st.cache_data(show_spinner=True, ttl=3600)
 def load_match_data() -> pl.DataFrame:
-    for src in DATA_PATHS:
+    needed = PLAYER_CARD_COLS + OPPONENT_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL]
+    for get_src in (get_clean_parquet_source, get_final_ml_parquet_source):
         try:
-            df = pl.read_parquet(src)
-            needed = set(
-                PLAYER_CARD_COLS + OPPONENT_CARD_COLS
-                + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL]
-            )
-            if needed.issubset(set(df.columns)):
-                return df.select(list(needed))
+            df = pl.scan_parquet(get_src()).select(needed).collect()
+            if df.height > SAMPLE_SIZE:
+                df = df.sample(n=SAMPLE_SIZE, seed=42)
+            return df
         except Exception:
             continue
     raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")

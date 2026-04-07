@@ -213,11 +213,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-DATA_PATHS = [
-    get_clean_parquet_source(),
-    get_final_ml_parquet_source(),
-]
-
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 PLAYER_CROWNS_COL = "player1.crowns"
 OPPONENT_CROWNS_COL = "player2.crowns"
@@ -277,15 +272,13 @@ def load_card_assets():
 
 @st.cache_data(show_spinner=True, ttl=3600)
 def load_match_data() -> pl.DataFrame:
-    for src in DATA_PATHS:
+    needed = PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL]
+    for get_src in (get_clean_parquet_source, get_final_ml_parquet_source):
         try:
-            df = pl.read_parquet(src)
-            required_cols = set(PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL])
-            if required_cols.issubset(set(df.columns)):
-                selected = df.select(PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL])
-                if selected.height > SAMPLE_SIZE:
-                    selected = selected.sample(n=SAMPLE_SIZE, seed=42)
-                return selected
+            df = pl.scan_parquet(get_src()).select(needed).collect()
+            if df.height > SAMPLE_SIZE:
+                df = df.sample(n=SAMPLE_SIZE, seed=42)
+            return df
         except Exception:
             continue
 
