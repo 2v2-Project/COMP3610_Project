@@ -24,7 +24,7 @@ from utils.deck_helpers import (
 )
 from utils.metadata import get_card_names, get_card_types, get_elixir_costs, get_icon_urls
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import ensure_clean_parquet
+from utils.data_loader import get_clean_parquet_source
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,8 @@ section.main > div { max-width: 1140px; margin: auto; }
 
 # ── constants ───────────────────────────────────────────────────────
 DATA_PATHS = [
-    ensure_clean_parquet(),
-    Path("data/processed/final_ml_dataset.parquet"),
+    get_clean_parquet_source(),
+    str(Path("data/processed/final_ml_dataset.parquet")),
 ]
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]
@@ -83,11 +83,13 @@ def _load_card_maps():
 @st.cache_data(show_spinner=True, ttl=3600)
 def _load_matches() -> pl.DataFrame:
     needed = set(PLAYER_CARD_COLS + OPPONENT_CARD_COLS + [PLAYER_CROWNS, OPPONENT_CROWNS])
-    for p in DATA_PATHS:
-        if p.exists():
-            df = pl.read_parquet(p)
+    for src in DATA_PATHS:
+        try:
+            df = pl.read_parquet(src)
             if needed.issubset(df.columns):
                 return df.select(list(needed))
+        except Exception:
+            continue
     raise FileNotFoundError("No parquet with required columns found.")
 
 

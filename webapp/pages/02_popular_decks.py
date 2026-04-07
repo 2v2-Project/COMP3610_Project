@@ -16,7 +16,7 @@ from utils.metadata import (
 from utils.deck_helpers import enrich_deck_record
 from utils.uncertainty import confidence_from_match_count
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import ensure_clean_parquet
+from utils.data_loader import get_clean_parquet_source
 
 st.set_page_config(page_title="Popular Decks", layout="wide")
 inject_fonts()
@@ -214,8 +214,8 @@ st.markdown(
 )
 
 DATA_PATHS = [
-    ensure_clean_parquet(),
-    Path("data/processed/final_ml_dataset.parquet"),
+    get_clean_parquet_source(),
+    str(Path("data/processed/final_ml_dataset.parquet")),
 ]
 
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
@@ -276,12 +276,14 @@ def load_card_assets():
 
 @st.cache_data(show_spinner=True, ttl=3600)
 def load_match_data() -> pl.DataFrame:
-    for path in DATA_PATHS:
-        if path.exists():
-            df = pl.read_parquet(path)
+    for src in DATA_PATHS:
+        try:
+            df = pl.read_parquet(src)
             required_cols = set(PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL])
             if required_cols.issubset(set(df.columns)):
                 return df.select(PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL])
+        except Exception:
+            continue
 
     raise FileNotFoundError(
         "Could not find a suitable parquet file with player deck cards and crown columns."
