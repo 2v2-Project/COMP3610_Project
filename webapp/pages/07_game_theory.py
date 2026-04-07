@@ -67,10 +67,6 @@ st.markdown(
 )
 
 # ── Constants ───────────────────────────────────────────────────────
-DATA_PATHS = [
-    get_clean_parquet_source(),
-    get_final_ml_parquet_source(),
-]
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]
 PLAYER_CROWNS = "player1.crowns"
@@ -151,17 +147,13 @@ SAMPLE_SIZE = 500_000
 
 @st.cache_data(show_spinner="Loading match data …")
 def load_match_data() -> pd.DataFrame:
-    for src in DATA_PATHS:
+    needed = PLAYER_CARD_COLS + OPPONENT_CARD_COLS + [PLAYER_CROWNS, OPPONENT_CROWNS]
+    for get_src in (get_clean_parquet_source, get_final_ml_parquet_source):
         try:
-            df = pl.read_parquet(src)
-            needed = set(PLAYER_CARD_COLS + OPPONENT_CARD_COLS +
-                         [PLAYER_CROWNS, OPPONENT_CROWNS])
-            if needed.issubset(set(df.columns)):
-                selected = df.select(list(needed))
-                # Stratified random sample for performance
-                if selected.height > SAMPLE_SIZE:
-                    selected = selected.sample(n=SAMPLE_SIZE, seed=42)
-                return selected.to_pandas()
+            df = pl.scan_parquet(get_src()).select(needed).collect()
+            if df.height > SAMPLE_SIZE:
+                df = df.sample(n=SAMPLE_SIZE, seed=42)
+            return df.to_pandas()
         except Exception:
             continue
     raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")

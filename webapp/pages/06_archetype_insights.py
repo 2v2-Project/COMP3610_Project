@@ -58,10 +58,8 @@ section.main > div { max-width: 1140px; margin: auto; }
 """, unsafe_allow_html=True)
 
 # ── constants ───────────────────────────────────────────────────────
-DATA_PATHS = [
-    get_clean_parquet_source(),
-    get_final_ml_parquet_source(),
-]
+SAMPLE_SIZE = 200_000
+
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
 OPPONENT_CARD_COLS = [f"player2.card{i}" for i in range(1, 9)]
 PLAYER_CROWNS = "player1.crowns"
@@ -82,12 +80,13 @@ def _load_card_maps():
 
 @st.cache_data(show_spinner=True, ttl=3600)
 def _load_matches() -> pl.DataFrame:
-    needed = set(PLAYER_CARD_COLS + OPPONENT_CARD_COLS + [PLAYER_CROWNS, OPPONENT_CROWNS])
-    for src in DATA_PATHS:
+    needed = PLAYER_CARD_COLS + OPPONENT_CARD_COLS + [PLAYER_CROWNS, OPPONENT_CROWNS]
+    for get_src in (get_clean_parquet_source, get_final_ml_parquet_source):
         try:
-            df = pl.read_parquet(src)
-            if needed.issubset(df.columns):
-                return df.select(list(needed))
+            df = pl.scan_parquet(get_src()).select(needed).collect()
+            if df.height > SAMPLE_SIZE:
+                df = df.sample(n=SAMPLE_SIZE, seed=42)
+            return df
         except Exception:
             continue
     raise FileNotFoundError("No parquet with required columns found.")

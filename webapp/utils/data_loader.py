@@ -32,21 +32,25 @@ def _hf_or_local(local_path: Path, hf_filename: str) -> str:
     )
 
 
+@st.cache_resource
 def get_clean_parquet_source() -> str:
     """Return path to clash_royale_clean.parquet (downloads from HF if needed)."""
     return _hf_or_local(CLEAN_PARQUET_PATH, "clash_royale_clean.parquet")
 
 
+@st.cache_resource
 def get_archetype_parquet_source() -> str:
     """Return path to archetype_features.parquet (downloads from HF if needed)."""
     return _hf_or_local(ARCH_PARQUET_PATH, "archetype_features.parquet")
 
 
+@st.cache_resource
 def get_elixir_parquet_source() -> str:
     """Return path to deck_elixir_features.parquet (downloads from HF if needed)."""
     return _hf_or_local(ELIXIR_PARQUET_PATH, "deck_elixir_features.parquet")
 
 
+@st.cache_resource
 def get_final_ml_parquet_source() -> str:
     """Return path to final_ml_dataset.parquet (downloads from HF if needed)."""
     return _hf_or_local(FINAL_ML_PARQUET_PATH, "final_ml_dataset.parquet")
