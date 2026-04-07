@@ -30,12 +30,17 @@ def ensure_clean_parquet(dest: Path = CLEAN_PARQUET_PATH) -> Path:
 
     dest.parent.mkdir(parents=True, exist_ok=True)
     logger.info("Downloading clash_royale_clean.parquet from HuggingFace …")
-    with st.spinner("Downloading match dataset from HuggingFace (one-time) …"):
-        resp = requests.get(HF_PARQUET_URL, stream=True, timeout=300)
-        resp.raise_for_status()
-        with open(dest, "wb") as f:
+    resp = requests.get(HF_PARQUET_URL, stream=True, timeout=300)
+    resp.raise_for_status()
+    tmp = dest.with_suffix(".tmp")
+    try:
+        with open(tmp, "wb") as f:
             for chunk in resp.iter_content(chunk_size=1 << 20):  # 1 MB chunks
                 f.write(chunk)
+        tmp.rename(dest)
+    except BaseException:
+        tmp.unlink(missing_ok=True)
+        raise
     logger.info("Downloaded %s (%.1f MB)", dest, dest.stat().st_size / 1e6)
     return dest
 
