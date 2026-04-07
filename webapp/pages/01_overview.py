@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 st.set_page_config(page_title="Overview", layout="wide")
 
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import get_clean_parquet_source, get_archetype_parquet_source, get_elixir_parquet_source
+from utils.data_loader import get_clean_parquet_source
 inject_fonts()
 
 # ------------------------------------------------------------------
@@ -33,8 +33,6 @@ inject_fonts()
 # ------------------------------------------------------------------
 DATA_DIR = Path("data/processed")
 CLEAN = get_clean_parquet_source()
-ARCH = get_archetype_parquet_source()
-ELIXIR = get_elixir_parquet_source()
 
 
 # ------------------------------------------------------------------
@@ -44,7 +42,7 @@ ELIXIR = get_elixir_parquet_source()
 def query(sql: str) -> pd.DataFrame:
     con = duckdb.connect()
     try:
-        con.execute("SET memory_limit = '512MB'")
+        con.execute("SET memory_limit = '256MB'")
         return con.sql(sql).df()
     finally:
         con.close()
@@ -81,39 +79,36 @@ p2_wins = total_matches - p1_wins
 win_rate = p1_wins / total_matches * 100
 avg_trophies = (metrics["avg_p1_trophies"] + metrics["avg_p2_trophies"]) / 2
 
-# Unique cards — UNPIVOT the 16 card columns (use SAMPLE for memory)
+# Unique cards — UNPIVOT the 16 card columns
 unique_cards = query(f"""
-    WITH sample AS (
-        SELECT * FROM '{CLEAN}' USING SAMPLE 500000
-    ),
-    all_cards AS (
-        SELECT "player1.card1" AS cid FROM sample
-        UNION ALL SELECT "player1.card2" FROM sample
-        UNION ALL SELECT "player1.card3" FROM sample
-        UNION ALL SELECT "player1.card4" FROM sample
-        UNION ALL SELECT "player1.card5" FROM sample
-        UNION ALL SELECT "player1.card6" FROM sample
-        UNION ALL SELECT "player1.card7" FROM sample
-        UNION ALL SELECT "player1.card8" FROM sample
-        UNION ALL SELECT "player2.card1" FROM sample
-        UNION ALL SELECT "player2.card2" FROM sample
-        UNION ALL SELECT "player2.card3" FROM sample
-        UNION ALL SELECT "player2.card4" FROM sample
-        UNION ALL SELECT "player2.card5" FROM sample
-        UNION ALL SELECT "player2.card6" FROM sample
-        UNION ALL SELECT "player2.card7" FROM sample
-        UNION ALL SELECT "player2.card8" FROM sample
+    WITH all_cards AS (
+        SELECT "player1.card1" AS cid FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card2" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card3" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card4" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card5" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card6" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card7" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card8" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card1" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card2" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card3" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card4" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card5" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card6" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card7" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card8" FROM '{CLEAN}'
     )
     SELECT count(DISTINCT cid) AS n FROM all_cards
 """).iloc[0]["n"]
 
 unique_players = query(f"""
-    WITH sample AS (
-        SELECT "player1.tag" AS tag FROM '{CLEAN}' USING SAMPLE 500000
+    WITH tags AS (
+        SELECT "player1.tag" AS tag FROM '{CLEAN}'
         UNION
-        SELECT "player2.tag" FROM '{CLEAN}' USING SAMPLE 500000
+        SELECT "player2.tag" FROM '{CLEAN}'
     )
-    SELECT count(*) AS n FROM sample
+    SELECT count(*) AS n FROM tags
 """).iloc[0]["n"]
 
 # ------------------------------------------------------------------
@@ -205,24 +200,23 @@ st.divider()
 st.subheader("Top 10 Most Used Cards")
 
 card_usage = query(f"""
-    WITH sample AS (SELECT * FROM '{CLEAN}' USING SAMPLE 500000),
-    all_cards AS (
-        SELECT "player1.card1" AS cid FROM sample
-        UNION ALL SELECT "player1.card2" FROM sample
-        UNION ALL SELECT "player1.card3" FROM sample
-        UNION ALL SELECT "player1.card4" FROM sample
-        UNION ALL SELECT "player1.card5" FROM sample
-        UNION ALL SELECT "player1.card6" FROM sample
-        UNION ALL SELECT "player1.card7" FROM sample
-        UNION ALL SELECT "player1.card8" FROM sample
-        UNION ALL SELECT "player2.card1" FROM sample
-        UNION ALL SELECT "player2.card2" FROM sample
-        UNION ALL SELECT "player2.card3" FROM sample
-        UNION ALL SELECT "player2.card4" FROM sample
-        UNION ALL SELECT "player2.card5" FROM sample
-        UNION ALL SELECT "player2.card6" FROM sample
-        UNION ALL SELECT "player2.card7" FROM sample
-        UNION ALL SELECT "player2.card8" FROM sample
+    WITH all_cards AS (
+        SELECT "player1.card1" AS cid FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card2" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card3" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card4" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card5" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card6" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card7" FROM '{CLEAN}'
+        UNION ALL SELECT "player1.card8" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card1" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card2" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card3" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card4" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card5" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card6" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card7" FROM '{CLEAN}'
+        UNION ALL SELECT "player2.card8" FROM '{CLEAN}'
     )
     SELECT cid AS card_id, count(*) AS usage_count
     FROM all_cards
@@ -230,7 +224,7 @@ card_usage = query(f"""
     ORDER BY usage_count DESC
     LIMIT 10
 """)
-total_card_slots = 500000 * 16  # matches the SAMPLE size in card_usage query
+total_card_slots = total_matches * 16
 card_usage["card_name"] = card_usage["card_id"].map(card_name_map).fillna(
     card_usage["card_id"].astype(str)
 )
@@ -275,7 +269,7 @@ with r3c1:
     player_arch = query(f"""
         SELECT player_archetype AS "Archetype",
                count(*) AS "Count"
-        FROM '{ARCH}'
+        FROM '{CLEAN}'
         GROUP BY player_archetype
         ORDER BY "Count" DESC
     """)
@@ -307,14 +301,13 @@ with r3c1:
     )
 
 with r3c2:
-    # Archetype win rates — LIMIT keeps row alignment for POSITIONAL JOIN
+    # Archetype win rates — archetype column is embedded in the sampled parquet
     arch_wr = query(f"""
-        SELECT a.player_archetype AS "Archetype",
-               avg(c.target_win) * 100 AS "Win Rate",
+        SELECT player_archetype AS "Archetype",
+               avg(target_win) * 100 AS "Win Rate",
                count(*) AS "Matches"
-        FROM (SELECT player_archetype FROM '{ARCH}' LIMIT 500000) a
-        POSITIONAL JOIN (SELECT target_win FROM '{CLEAN}' LIMIT 500000) c
-        GROUP BY a.player_archetype
+        FROM '{CLEAN}'
+        GROUP BY player_archetype
         ORDER BY "Win Rate"
     """)
 
@@ -355,8 +348,7 @@ st.subheader("Elixir & Cycle Statistics")
 # Sample for histograms + pre-compute stats
 elixir_sample = query(f"""
     SELECT player_avg_elixir, player_cycle_cards
-    FROM '{ELIXIR}'
-    USING SAMPLE 200000
+    FROM '{CLEAN}'
 """)
 
 elixir_stats = query(f"""
@@ -367,7 +359,7 @@ elixir_stats = query(f"""
         avg(player_spell_count)    AS avg_spells,
         avg(player_building_count) AS avg_buildings,
         avg(player_cycle_cards)    AS avg_cycle
-    FROM '{ELIXIR}'
+    FROM '{CLEAN}'
 """).iloc[0]
 
 r4c1, r4c2 = st.columns(2)

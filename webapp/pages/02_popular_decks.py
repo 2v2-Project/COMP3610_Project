@@ -16,7 +16,7 @@ from utils.metadata import (
 from utils.deck_helpers import enrich_deck_record
 from utils.uncertainty import confidence_from_match_count
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import get_clean_parquet_source, get_final_ml_parquet_source
+from utils.data_loader import get_clean_parquet_source
 
 st.set_page_config(page_title="Popular Decks", layout="wide")
 inject_fonts()
@@ -273,18 +273,10 @@ def load_card_assets():
 @st.cache_data(show_spinner=True, ttl=3600)
 def load_match_data() -> pl.DataFrame:
     needed = PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL]
-    for get_src in (get_clean_parquet_source, get_final_ml_parquet_source):
-        try:
-            df = pl.scan_parquet(get_src()).select(needed).collect()
-            if df.height > SAMPLE_SIZE:
-                df = df.sample(n=SAMPLE_SIZE, seed=42)
-            return df
-        except Exception:
-            continue
-
-    raise FileNotFoundError(
-        "Could not find a suitable parquet file with player deck cards and crown columns."
-    )
+    df = pl.scan_parquet(get_clean_parquet_source()).select(needed).collect()
+    if df.height > SAMPLE_SIZE:
+        df = df.sample(n=SAMPLE_SIZE, seed=42)
+    return df
 
 
 def _confidence_label_from_matches(matches: int) -> str:

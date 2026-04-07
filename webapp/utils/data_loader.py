@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 # ── HuggingFace dataset config ───────────────────────────────────
 HF_REPO_ID = "lillyem/clash-royale-data"
-CLEAN_PARQUET_PATH = Path("data/processed/clash_royale_clean.parquet")
+CLEAN_PARQUET_PATH = Path("data/processed/clash_royale_clean_500k.parquet")
 ARCH_PARQUET_PATH = Path("data/processed/archetype_features.parquet")
 ELIXIR_PARQUET_PATH = Path("data/processed/deck_elixir_features.parquet")
 FINAL_ML_PARQUET_PATH = Path("data/processed/final_ml_dataset.parquet")
@@ -34,8 +34,8 @@ def _hf_or_local(local_path: Path, hf_filename: str) -> str:
 
 @st.cache_resource
 def get_clean_parquet_source() -> str:
-    """Return path to clash_royale_clean.parquet (downloads from HF if needed)."""
-    return _hf_or_local(CLEAN_PARQUET_PATH, "clash_royale_clean.parquet")
+    """Return path to clash_royale_clean_500k.parquet (downloads from HF if needed)."""
+    return _hf_or_local(CLEAN_PARQUET_PATH, "clash_royale_clean_500k.parquet")
 
 
 @st.cache_resource

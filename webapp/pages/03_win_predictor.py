@@ -39,7 +39,7 @@ from utils.model_loader import load_best_model, load_feature_schema, load_xgboos
 from utils.preprocess import build_feature_vector
 from utils.explanation_engine import build_prediction_explanations
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import load_card_rankings, get_clean_parquet_source, get_final_ml_parquet_source
+from utils.data_loader import load_card_rankings, get_clean_parquet_source
 
 logger = logging.getLogger(__name__)
 
@@ -258,18 +258,10 @@ def load_metadata_df() -> pd.DataFrame:
 @st.cache_data(show_spinner=True, ttl=3600)
 def load_match_data() -> pl.DataFrame:
     needed = PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL]
-    for get_src in (get_clean_parquet_source, get_final_ml_parquet_source):
-        try:
-            df = pl.scan_parquet(get_src()).select(needed).collect()
-            if df.height > SAMPLE_SIZE:
-                df = df.sample(n=SAMPLE_SIZE, seed=42)
-            return df
-        except Exception:
-            continue
-
-    raise FileNotFoundError(
-        "Could not find a suitable parquet file with player deck cards and crown columns."
-    )
+    df = pl.scan_parquet(get_clean_parquet_source()).select(needed).collect()
+    if df.height > SAMPLE_SIZE:
+        df = df.sample(n=SAMPLE_SIZE, seed=42)
+    return df
 
 
 @st.cache_data(show_spinner=True, ttl=3600)
