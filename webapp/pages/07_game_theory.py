@@ -31,6 +31,7 @@ from utils.metadata import (
     get_elixir_costs,
 )
 from utils.ui_helpers import inject_fonts
+from utils.data_loader import ensure_clean_parquet
 
 st.set_page_config(page_title="Game Theory Insights", layout="wide")
 inject_fonts()
@@ -67,7 +68,7 @@ st.markdown(
 
 # ── Constants ───────────────────────────────────────────────────────
 DATA_PATHS = [
-    Path("data/processed/clash_royale_clean.parquet"),
+    ensure_clean_parquet(),
     Path("data/processed/final_ml_dataset.parquet"),
 ]
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]

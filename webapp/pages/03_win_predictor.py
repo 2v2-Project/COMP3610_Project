@@ -39,7 +39,7 @@ from utils.model_loader import load_best_model, load_feature_schema, load_xgboos
 from utils.preprocess import build_feature_vector
 from utils.explanation_engine import build_prediction_explanations
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import load_card_rankings
+from utils.data_loader import load_card_rankings, ensure_clean_parquet
 
 logger = logging.getLogger(__name__)
 
@@ -196,7 +196,7 @@ st.markdown(
 )
 
 DATA_PATHS = [
-    Path("data/processed/clash_royale_clean.parquet"),
+    ensure_clean_parquet(),
     Path("data/processed/final_ml_dataset.parquet"),
 ]
 

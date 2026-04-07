@@ -3,9 +3,22 @@ Reusable Streamlit UI components shared across pages.
 Provides consistent styling and interaction patterns.
 """
 
+import base64
+from pathlib import Path
 import streamlit as st
 from typing import List, Optional, Tuple
 import pandas as pd
+
+# ------------------------------------------------------------------
+# Encode background image as data URI for reliable rendering
+# ------------------------------------------------------------------
+def _bg_data_uri() -> str:
+    """Return the background.png as a base64 data URI."""
+    bg = Path(__file__).resolve().parent.parent / "static" / "background.png"
+    if bg.exists():
+        b64 = base64.b64encode(bg.read_bytes()).decode()
+        return f"data:image/png;base64,{b64}"
+    return ""
 
 # ------------------------------------------------------------------
 # Global font + blue-white theme injection
@@ -65,7 +78,7 @@ h1,
 }
 
 .stApp {
-    background-image: url('/app/static/background.png') !important;
+    background-image: url('__BG_DATA_URI__') !important;
     background-size: cover !important;
     background-position: center !important;
     background-attachment: fixed !important;
@@ -212,7 +225,8 @@ details[data-testid="stExpander"] {
 
 def inject_fonts():
     """Inject Supercell-Magic title font, Poppins body font, and blue-white theme. Call once per page."""
-    st.markdown(_THEME_CSS, unsafe_allow_html=True)
+    css = _THEME_CSS.replace("__BG_DATA_URI__", _bg_data_uri())
+    st.markdown(css, unsafe_allow_html=True)
 
 
 def render_page_header(title: str, subtitle: Optional[str] = None, icon: Optional[str] = None) -> None:

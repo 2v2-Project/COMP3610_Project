@@ -25,13 +25,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 st.set_page_config(page_title="Overview", layout="wide")
 
 from utils.ui_helpers import inject_fonts
+from utils.data_loader import ensure_clean_parquet
 inject_fonts()
 
 # ------------------------------------------------------------------
 # Paths
 # ------------------------------------------------------------------
 DATA_DIR = Path("data/processed")
-CLEAN = str(DATA_DIR / "clash_royale_clean.parquet")
+CLEAN = str(ensure_clean_parquet())
 ARCH = str(DATA_DIR / "archetype_features.parquet")
 ELIXIR = str(DATA_DIR / "deck_elixir_features.parquet")
 

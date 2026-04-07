@@ -24,6 +24,7 @@ from utils.deck_helpers import (
 )
 from utils.metadata import get_card_names, get_card_types, get_elixir_costs, get_icon_urls
 from utils.ui_helpers import inject_fonts
+from utils.data_loader import ensure_clean_parquet
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +59,7 @@ section.main > div { max-width: 1140px; margin: auto; }
 
 # ── constants ───────────────────────────────────────────────────────
 DATA_PATHS = [
-    Path("data/processed/clash_royale_clean.parquet"),
+    ensure_clean_parquet(),
     Path("data/processed/final_ml_dataset.parquet"),
 ]
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]

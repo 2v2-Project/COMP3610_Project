@@ -8,8 +8,36 @@ import streamlit as st
 from pathlib import Path
 import pandas as pd
 from typing import Optional, Union
+import requests
 
 logger = logging.getLogger(__name__)
+
+# ── HuggingFace dataset config ───────────────────────────────────
+HF_PARQUET_URL = (
+    "https://huggingface.co/datasets/lillyem/clash-royale-data"
+    "/resolve/main/clash_royale_clean.parquet"
+)
+CLEAN_PARQUET_PATH = Path("data/processed/clash_royale_clean.parquet")
+
+
+def ensure_clean_parquet(dest: Path = CLEAN_PARQUET_PATH) -> Path:
+    """
+    Return the local path to clash_royale_clean.parquet, downloading it
+    from HuggingFace on first run if the file is not already present.
+    """
+    if dest.exists():
+        return dest
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    logger.info("Downloading clash_royale_clean.parquet from HuggingFace …")
+    with st.spinner("Downloading match dataset from HuggingFace (one-time) …"):
+        resp = requests.get(HF_PARQUET_URL, stream=True, timeout=300)
+        resp.raise_for_status()
+        with open(dest, "wb") as f:
+            for chunk in resp.iter_content(chunk_size=1 << 20):  # 1 MB chunks
+                f.write(chunk)
+    logger.info("Downloaded %s (%.1f MB)", dest, dest.stat().st_size / 1e6)
+    return dest
 
 
 @st.cache_data
