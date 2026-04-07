@@ -14,26 +14,30 @@ logger = logging.getLogger(__name__)
 
 # ── HuggingFace dataset config ───────────────────────────────────
 HF_REPO_ID = "lillyem/clash-royale-data"
-HF_FILENAME = "clash_royale_clean.parquet"
 CLEAN_PARQUET_PATH = Path("data/processed/clash_royale_clean.parquet")
+ARCH_PARQUET_PATH = Path("data/processed/archetype_features.parquet")
+
+
+def _hf_or_local(local_path: Path, hf_filename: str) -> str:
+    """Return local path if it exists, otherwise download from HuggingFace."""
+    if local_path.exists():
+        return str(local_path)
+    logger.info("Downloading %s from HuggingFace …", hf_filename)
+    return hf_hub_download(
+        repo_id=HF_REPO_ID,
+        filename=hf_filename,
+        repo_type="dataset",
+    )
 
 
 def get_clean_parquet_source() -> str:
-    """
-    Return the local path to clash_royale_clean.parquet, downloading it
-    from HuggingFace via huggingface_hub the first time the app runs.
-    Uses HF's built-in cache and handles Xet storage transparently.
-    """
-    if CLEAN_PARQUET_PATH.exists():
-        return str(CLEAN_PARQUET_PATH)
+    """Return path to clash_royale_clean.parquet (downloads from HF if needed)."""
+    return _hf_or_local(CLEAN_PARQUET_PATH, "clash_royale_clean.parquet")
 
-    logger.info("Downloading %s from HuggingFace …", HF_FILENAME)
-    cached_path = hf_hub_download(
-        repo_id=HF_REPO_ID,
-        filename=HF_FILENAME,
-        repo_type="dataset",
-    )
-    return cached_path
+
+def get_archetype_parquet_source() -> str:
+    """Return path to archetype_features.parquet (downloads from HF if needed)."""
+    return _hf_or_local(ARCH_PARQUET_PATH, "archetype_features.parquet")
 
 
 @st.cache_data
