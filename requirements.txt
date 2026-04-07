@@ -22,3 +22,4 @@ beautifulsoup4>=4.12.0
 # ── Web application ──────────────────────────────────────────────
 streamlit>=1.30.0
 requests>=2.31.0,<3.0
+huggingface_hub>=0.20.0

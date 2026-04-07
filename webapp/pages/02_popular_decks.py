@@ -225,6 +225,7 @@ OPPONENT_CROWNS_COL = "player2.crowns"
 DEFAULT_MIN_MATCHES = 50
 DEFAULT_TOP_N = 30
 MAX_ENRICHED_DECKS = 1500
+SAMPLE_SIZE = 200_000
 
 ELIXIR_ICON = "https://cdn.royaleapi.com/static/img/ui/elixir.png"
 CARDS_ICON = "https://cdn.royaleapi.com/static/img/ui/cards.png"
@@ -281,7 +282,10 @@ def load_match_data() -> pl.DataFrame:
             df = pl.read_parquet(src)
             required_cols = set(PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL])
             if required_cols.issubset(set(df.columns)):
-                return df.select(PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL])
+                selected = df.select(PLAYER_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL])
+                if selected.height > SAMPLE_SIZE:
+                    selected = selected.sample(n=SAMPLE_SIZE, seed=42)
+                return selected
         except Exception:
             continue
 
