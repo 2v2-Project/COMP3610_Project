@@ -4,6 +4,8 @@ import base64
 import duckdb
 import streamlit as st
 
+from utils.data_loader import ensure_clean_parquet
+
 st.set_page_config(
     page_title="Clash Royale Analytics Engine",
     layout="wide",
@@ -281,7 +283,7 @@ section.main > div { max-width: 1140px; margin: auto; }
 # Real metrics from the dataset
 # ------------------------------------------------------------------
 DATA_DIR = Path("data/processed")
-CLEAN = str(DATA_DIR / "clash_royale_clean.parquet")
+CLEAN = str(ensure_clean_parquet())
 
 
 @st.cache_data

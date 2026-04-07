@@ -40,7 +40,7 @@ from utils.preprocess import build_feature_vector
 st.set_page_config(page_title="Matchup Analysis", layout="wide")
 
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import load_card_rankings
+from utils.data_loader import load_card_rankings, ensure_clean_parquet
 
 inject_fonts()
 
@@ -118,7 +118,7 @@ st.markdown(
 
 # ── Data paths ──────────────────────────────────────────────────────
 DATA_PATHS = [
-    Path("data/processed/clash_royale_clean.parquet"),
+    ensure_clean_parquet(),
     Path("data/processed/final_ml_dataset.parquet"),
 ]
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]

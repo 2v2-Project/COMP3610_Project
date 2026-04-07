@@ -4,6 +4,7 @@ Provides modular utilities for data loading, model inference, preprocessing, and
 """
 
 from .data_loader import (
+    ensure_clean_parquet,
     load_card_metadata,
     load_final_dataset,
     load_csv_if_exists,

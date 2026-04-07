@@ -33,6 +33,7 @@ from utils.uncertainty import (
     predict_probability_with_xgboost,
 )
 from utils.model_loader import load_feature_schema
+from utils.data_loader import ensure_clean_parquet
 from utils.recommendation import (
     score_swaps_with_model,
     find_top_historical_decks,
@@ -102,7 +103,7 @@ ELIXIR_ICON = "https://cdn.royaleapi.com/static/img/ui/elixir.png"
 
 # ── Data paths ──────────────────────────────────────────────────────
 DATA_PATHS = [
-    Path("data/processed/clash_royale_clean.parquet"),
+    ensure_clean_parquet(),
     Path("data/processed/final_ml_dataset.parquet"),
 ]
 PLAYER_CARD_COLS = [f"player1.card{i}" for i in range(1, 9)]
