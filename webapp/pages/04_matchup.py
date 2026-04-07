@@ -40,7 +40,7 @@ from utils.preprocess import build_feature_vector
 st.set_page_config(page_title="Matchup Analysis", layout="wide")
 
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import load_card_rankings, get_clean_parquet_source, get_final_ml_parquet_source
+from utils.data_loader import load_card_rankings, get_clean_parquet_source
 
 inject_fonts()
 
@@ -158,15 +158,10 @@ def _load_metadata_df() -> pd.DataFrame:
 @st.cache_data(show_spinner=True, ttl=3600)
 def load_match_data() -> pl.DataFrame:
     needed = PLAYER_CARD_COLS + OPPONENT_CARD_COLS + [PLAYER_CROWNS_COL, OPPONENT_CROWNS_COL]
-    for get_src in (get_clean_parquet_source, get_final_ml_parquet_source):
-        try:
-            df = pl.scan_parquet(get_src()).select(needed).collect()
-            if df.height > SAMPLE_SIZE:
-                df = df.sample(n=SAMPLE_SIZE, seed=42)
-            return df
-        except Exception:
-            continue
-    raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")
+    df = pl.scan_parquet(get_clean_parquet_source()).select(needed).collect()
+    if df.height > SAMPLE_SIZE:
+        df = df.sample(n=SAMPLE_SIZE, seed=42)
+    return df
 
 
 def _build_deck_key_col(df: pl.DataFrame, card_cols: list[str], alias: str) -> pl.DataFrame:

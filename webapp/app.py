@@ -289,7 +289,7 @@ CLEAN = get_clean_parquet_source()
 @st.cache_data
 def _load_home_metrics() -> dict:
     con = duckdb.connect()
-    con.execute("SET memory_limit = '512MB'")
+    con.execute("SET memory_limit = '256MB'")
 
     metrics = con.sql(f"""
         SELECT count(*) AS total_matches,
@@ -300,24 +300,23 @@ def _load_home_metrics() -> dict:
     """).df().iloc[0]
 
     unique_cards = int(con.sql(f"""
-        WITH sample AS (SELECT * FROM '{CLEAN}' USING SAMPLE 500000),
-        ac AS (
-            SELECT "player1.card1" c FROM sample UNION ALL SELECT "player1.card2" FROM sample
-            UNION ALL SELECT "player1.card3" FROM sample UNION ALL SELECT "player1.card4" FROM sample
-            UNION ALL SELECT "player1.card5" FROM sample UNION ALL SELECT "player1.card6" FROM sample
-            UNION ALL SELECT "player1.card7" FROM sample UNION ALL SELECT "player1.card8" FROM sample
-            UNION ALL SELECT "player2.card1" FROM sample UNION ALL SELECT "player2.card2" FROM sample
-            UNION ALL SELECT "player2.card3" FROM sample UNION ALL SELECT "player2.card4" FROM sample
-            UNION ALL SELECT "player2.card5" FROM sample UNION ALL SELECT "player2.card6" FROM sample
-            UNION ALL SELECT "player2.card7" FROM sample UNION ALL SELECT "player2.card8" FROM sample
+        WITH ac AS (
+            SELECT "player1.card1" c FROM '{CLEAN}' UNION ALL SELECT "player1.card2" FROM '{CLEAN}'
+            UNION ALL SELECT "player1.card3" FROM '{CLEAN}' UNION ALL SELECT "player1.card4" FROM '{CLEAN}'
+            UNION ALL SELECT "player1.card5" FROM '{CLEAN}' UNION ALL SELECT "player1.card6" FROM '{CLEAN}'
+            UNION ALL SELECT "player1.card7" FROM '{CLEAN}' UNION ALL SELECT "player1.card8" FROM '{CLEAN}'
+            UNION ALL SELECT "player2.card1" FROM '{CLEAN}' UNION ALL SELECT "player2.card2" FROM '{CLEAN}'
+            UNION ALL SELECT "player2.card3" FROM '{CLEAN}' UNION ALL SELECT "player2.card4" FROM '{CLEAN}'
+            UNION ALL SELECT "player2.card5" FROM '{CLEAN}' UNION ALL SELECT "player2.card6" FROM '{CLEAN}'
+            UNION ALL SELECT "player2.card7" FROM '{CLEAN}' UNION ALL SELECT "player2.card8" FROM '{CLEAN}'
         ) SELECT count(DISTINCT c) AS n FROM ac
     """).df().iloc[0]["n"])
 
     unique_players = int(con.sql(f"""
         WITH tags AS (
-            SELECT "player1.tag" AS tag FROM '{CLEAN}' USING SAMPLE 500000
+            SELECT "player1.tag" AS tag FROM '{CLEAN}'
             UNION
-            SELECT "player2.tag" FROM '{CLEAN}' USING SAMPLE 500000
+            SELECT "player2.tag" FROM '{CLEAN}'
         ) SELECT count(*) AS n FROM tags
     """).df().iloc[0]["n"])
 

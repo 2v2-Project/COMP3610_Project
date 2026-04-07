@@ -31,7 +31,7 @@ from utils.metadata import (
     get_elixir_costs,
 )
 from utils.ui_helpers import inject_fonts
-from utils.data_loader import get_clean_parquet_source, get_final_ml_parquet_source
+from utils.data_loader import get_clean_parquet_source
 
 st.set_page_config(page_title="Game Theory Insights", layout="wide")
 inject_fonts()
@@ -148,15 +148,10 @@ SAMPLE_SIZE = 500_000
 @st.cache_data(show_spinner="Loading match data …")
 def load_match_data() -> pd.DataFrame:
     needed = PLAYER_CARD_COLS + OPPONENT_CARD_COLS + [PLAYER_CROWNS, OPPONENT_CROWNS]
-    for get_src in (get_clean_parquet_source, get_final_ml_parquet_source):
-        try:
-            df = pl.scan_parquet(get_src()).select(needed).collect()
-            if df.height > SAMPLE_SIZE:
-                df = df.sample(n=SAMPLE_SIZE, seed=42)
-            return df.to_pandas()
-        except Exception:
-            continue
-    raise FileNotFoundError("No parquet with player+opponent cards and crowns found.")
+    df = pl.scan_parquet(get_clean_parquet_source()).select(needed).collect()
+    if df.height > SAMPLE_SIZE:
+        df = df.sample(n=SAMPLE_SIZE, seed=42)
+    return df.to_pandas()
 
 
 @st.cache_data(show_spinner="Building archetype payoff matrix …")
