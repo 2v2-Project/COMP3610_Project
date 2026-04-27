@@ -559,6 +559,8 @@ def main():
         # Fallback to historical confidence only if model loading fails
         confidence = historical_conf
 
+    opponent_win_prob = round(100 - player_win_prob, 2)
+
     # archetypes
     p_arch = detect_archetype(p_cards, name_map, elixir_map)
     o_arch = detect_archetype(o_cards, name_map, elixir_map)
